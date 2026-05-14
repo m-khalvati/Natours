@@ -5,7 +5,7 @@ import { login, logout } from './login';
 
 // DOM ELEMENTS
 const mapBox = document.getElementById('map');
-const loginForm = document.querySelector('.form');
+const loginForm = document.querySelector('.form--login');
 const logOutBtn = document.querySelector('.nav__el--logout');
 
 // DELEGATION
@@ -17,7 +17,6 @@ if (mapBox) {
 if (loginForm) {
   addEventListener('submit', e => {
     e.preventDefault();
-    // console.log(email, password);
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     login(email, password);

@@ -365,7 +365,91 @@ $export.U = 64;  // safe
 $export.R = 128; // real proto method for `library`
 module.exports = $export;
 
-},{"./_global":"../../node_modules/core-js/modules/_global.js","./_core":"../../node_modules/core-js/modules/_core.js","./_hide":"../../node_modules/core-js/modules/_hide.js","./_redefine":"../../node_modules/core-js/modules/_redefine.js","./_ctx":"../../node_modules/core-js/modules/_ctx.js"}],"../../node_modules/core-js/modules/_defined.js":[function(require,module,exports) {
+},{"./_global":"../../node_modules/core-js/modules/_global.js","./_core":"../../node_modules/core-js/modules/_core.js","./_hide":"../../node_modules/core-js/modules/_hide.js","./_redefine":"../../node_modules/core-js/modules/_redefine.js","./_ctx":"../../node_modules/core-js/modules/_ctx.js"}],"../../node_modules/core-js/modules/_cof.js":[function(require,module,exports) {
+var toString = {}.toString;
+
+module.exports = function (it) {
+  return toString.call(it).slice(8, -1);
+};
+
+},{}],"../../node_modules/core-js/modules/_is-array.js":[function(require,module,exports) {
+// 7.2.2 IsArray(argument)
+var cof = require('./_cof');
+module.exports = Array.isArray || function isArray(arg) {
+  return cof(arg) == 'Array';
+};
+
+},{"./_cof":"../../node_modules/core-js/modules/_cof.js"}],"../../node_modules/core-js/modules/_to-integer.js":[function(require,module,exports) {
+// 7.1.4 ToInteger
+var ceil = Math.ceil;
+var floor = Math.floor;
+module.exports = function (it) {
+  return isNaN(it = +it) ? 0 : (it > 0 ? floor : ceil)(it);
+};
+
+},{}],"../../node_modules/core-js/modules/_to-length.js":[function(require,module,exports) {
+// 7.1.15 ToLength
+var toInteger = require('./_to-integer');
+var min = Math.min;
+module.exports = function (it) {
+  return it > 0 ? min(toInteger(it), 0x1fffffffffffff) : 0; // pow(2, 53) - 1 == 9007199254740991
+};
+
+},{"./_to-integer":"../../node_modules/core-js/modules/_to-integer.js"}],"../../node_modules/core-js/modules/_wks.js":[function(require,module,exports) {
+var store = require('./_shared')('wks');
+var uid = require('./_uid');
+var Symbol = require('./_global').Symbol;
+var USE_SYMBOL = typeof Symbol == 'function';
+
+var $exports = module.exports = function (name) {
+  return store[name] || (store[name] =
+    USE_SYMBOL && Symbol[name] || (USE_SYMBOL ? Symbol : uid)('Symbol.' + name));
+};
+
+$exports.store = store;
+
+},{"./_shared":"../../node_modules/core-js/modules/_shared.js","./_uid":"../../node_modules/core-js/modules/_uid.js","./_global":"../../node_modules/core-js/modules/_global.js"}],"../../node_modules/core-js/modules/_flatten-into-array.js":[function(require,module,exports) {
+'use strict';
+// https://tc39.github.io/proposal-flatMap/#sec-FlattenIntoArray
+var isArray = require('./_is-array');
+var isObject = require('./_is-object');
+var toLength = require('./_to-length');
+var ctx = require('./_ctx');
+var IS_CONCAT_SPREADABLE = require('./_wks')('isConcatSpreadable');
+
+function flattenIntoArray(target, original, source, sourceLen, start, depth, mapper, thisArg) {
+  var targetIndex = start;
+  var sourceIndex = 0;
+  var mapFn = mapper ? ctx(mapper, thisArg, 3) : false;
+  var element, spreadable;
+
+  while (sourceIndex < sourceLen) {
+    if (sourceIndex in source) {
+      element = mapFn ? mapFn(source[sourceIndex], sourceIndex, original) : source[sourceIndex];
+
+      spreadable = false;
+      if (isObject(element)) {
+        spreadable = element[IS_CONCAT_SPREADABLE];
+        spreadable = spreadable !== undefined ? !!spreadable : isArray(element);
+      }
+
+      if (spreadable && depth > 0) {
+        targetIndex = flattenIntoArray(target, original, element, toLength(element.length), targetIndex, depth - 1) - 1;
+      } else {
+        if (targetIndex >= 0x1fffffffffffff) throw TypeError();
+        target[targetIndex] = element;
+      }
+
+      targetIndex++;
+    }
+    sourceIndex++;
+  }
+  return targetIndex;
+}
+
+module.exports = flattenIntoArray;
+
+},{"./_is-array":"../../node_modules/core-js/modules/_is-array.js","./_is-object":"../../node_modules/core-js/modules/_is-object.js","./_to-length":"../../node_modules/core-js/modules/_to-length.js","./_ctx":"../../node_modules/core-js/modules/_ctx.js","./_wks":"../../node_modules/core-js/modules/_wks.js"}],"../../node_modules/core-js/modules/_defined.js":[function(require,module,exports) {
 // 7.2.1 RequireObjectCoercible(argument)
 module.exports = function (it) {
   if (it == undefined) throw TypeError("Can't call method on  " + it);
@@ -379,137 +463,102 @@ module.exports = function (it) {
   return Object(defined(it));
 };
 
-},{"./_defined":"../../node_modules/core-js/modules/_defined.js"}],"../../node_modules/core-js/modules/_shared-key.js":[function(require,module,exports) {
-var shared = require('./_shared')('keys');
-var uid = require('./_uid');
+},{"./_defined":"../../node_modules/core-js/modules/_defined.js"}],"../../node_modules/core-js/modules/_array-species-constructor.js":[function(require,module,exports) {
+var isObject = require('./_is-object');
+var isArray = require('./_is-array');
+var SPECIES = require('./_wks')('species');
+
+module.exports = function (original) {
+  var C;
+  if (isArray(original)) {
+    C = original.constructor;
+    // cross-realm fallback
+    if (typeof C == 'function' && (C === Array || isArray(C.prototype))) C = undefined;
+    if (isObject(C)) {
+      C = C[SPECIES];
+      if (C === null) C = undefined;
+    }
+  } return C === undefined ? Array : C;
+};
+
+},{"./_is-object":"../../node_modules/core-js/modules/_is-object.js","./_is-array":"../../node_modules/core-js/modules/_is-array.js","./_wks":"../../node_modules/core-js/modules/_wks.js"}],"../../node_modules/core-js/modules/_array-species-create.js":[function(require,module,exports) {
+// 9.4.2.3 ArraySpeciesCreate(originalArray, length)
+var speciesConstructor = require('./_array-species-constructor');
+
+module.exports = function (original, length) {
+  return new (speciesConstructor(original))(length);
+};
+
+},{"./_array-species-constructor":"../../node_modules/core-js/modules/_array-species-constructor.js"}],"../../node_modules/core-js/modules/_add-to-unscopables.js":[function(require,module,exports) {
+// 22.1.3.31 Array.prototype[@@unscopables]
+var UNSCOPABLES = require('./_wks')('unscopables');
+var ArrayProto = Array.prototype;
+if (ArrayProto[UNSCOPABLES] == undefined) require('./_hide')(ArrayProto, UNSCOPABLES, {});
 module.exports = function (key) {
-  return shared[key] || (shared[key] = uid(key));
+  ArrayProto[UNSCOPABLES][key] = true;
 };
 
-},{"./_shared":"../../node_modules/core-js/modules/_shared.js","./_uid":"../../node_modules/core-js/modules/_uid.js"}],"../../node_modules/core-js/modules/_object-gpo.js":[function(require,module,exports) {
-// 19.1.2.9 / 15.2.3.2 Object.getPrototypeOf(O)
-var has = require('./_has');
-var toObject = require('./_to-object');
-var IE_PROTO = require('./_shared-key')('IE_PROTO');
-var ObjectProto = Object.prototype;
-
-module.exports = Object.getPrototypeOf || function (O) {
-  O = toObject(O);
-  if (has(O, IE_PROTO)) return O[IE_PROTO];
-  if (typeof O.constructor == 'function' && O instanceof O.constructor) {
-    return O.constructor.prototype;
-  } return O instanceof Object ? ObjectProto : null;
-};
-
-},{"./_has":"../../node_modules/core-js/modules/_has.js","./_to-object":"../../node_modules/core-js/modules/_to-object.js","./_shared-key":"../../node_modules/core-js/modules/_shared-key.js"}],"../../node_modules/core-js/modules/_object-pie.js":[function(require,module,exports) {
-exports.f = {}.propertyIsEnumerable;
-
-},{}],"../../node_modules/core-js/modules/_cof.js":[function(require,module,exports) {
-var toString = {}.toString;
-
-module.exports = function (it) {
-  return toString.call(it).slice(8, -1);
-};
-
-},{}],"../../node_modules/core-js/modules/_iobject.js":[function(require,module,exports) {
-// fallback for non-array-like ES3 and non-enumerable old V8 strings
-var cof = require('./_cof');
-// eslint-disable-next-line no-prototype-builtins
-module.exports = Object('z').propertyIsEnumerable(0) ? Object : function (it) {
-  return cof(it) == 'String' ? it.split('') : Object(it);
-};
-
-},{"./_cof":"../../node_modules/core-js/modules/_cof.js"}],"../../node_modules/core-js/modules/_to-iobject.js":[function(require,module,exports) {
-// to indexed object, toObject with fallback for non-array-like ES3 strings
-var IObject = require('./_iobject');
-var defined = require('./_defined');
-module.exports = function (it) {
-  return IObject(defined(it));
-};
-
-},{"./_iobject":"../../node_modules/core-js/modules/_iobject.js","./_defined":"../../node_modules/core-js/modules/_defined.js"}],"../../node_modules/core-js/modules/_object-gopd.js":[function(require,module,exports) {
-var pIE = require('./_object-pie');
-var createDesc = require('./_property-desc');
-var toIObject = require('./_to-iobject');
-var toPrimitive = require('./_to-primitive');
-var has = require('./_has');
-var IE8_DOM_DEFINE = require('./_ie8-dom-define');
-var gOPD = Object.getOwnPropertyDescriptor;
-
-exports.f = require('./_descriptors') ? gOPD : function getOwnPropertyDescriptor(O, P) {
-  O = toIObject(O);
-  P = toPrimitive(P, true);
-  if (IE8_DOM_DEFINE) try {
-    return gOPD(O, P);
-  } catch (e) { /* empty */ }
-  if (has(O, P)) return createDesc(!pIE.f.call(O, P), O[P]);
-};
-
-},{"./_object-pie":"../../node_modules/core-js/modules/_object-pie.js","./_property-desc":"../../node_modules/core-js/modules/_property-desc.js","./_to-iobject":"../../node_modules/core-js/modules/_to-iobject.js","./_to-primitive":"../../node_modules/core-js/modules/_to-primitive.js","./_has":"../../node_modules/core-js/modules/_has.js","./_ie8-dom-define":"../../node_modules/core-js/modules/_ie8-dom-define.js","./_descriptors":"../../node_modules/core-js/modules/_descriptors.js"}],"../../node_modules/core-js/modules/_object-forced-pam.js":[function(require,module,exports) {
+},{"./_wks":"../../node_modules/core-js/modules/_wks.js","./_hide":"../../node_modules/core-js/modules/_hide.js"}],"../../node_modules/core-js/modules/es7.array.flat-map.js":[function(require,module,exports) {
 'use strict';
-// Forced replacement prototype accessors methods
-module.exports = require('./_library') || !require('./_fails')(function () {
-  var K = Math.random();
-  // In FF throws only define methods
-  // eslint-disable-next-line no-undef, no-useless-call
-  __defineSetter__.call(null, K, function () { /* empty */ });
-  delete require('./_global')[K];
-});
-
-},{"./_library":"../../node_modules/core-js/modules/_library.js","./_fails":"../../node_modules/core-js/modules/_fails.js","./_global":"../../node_modules/core-js/modules/_global.js"}],"../../node_modules/core-js/modules/es7.object.lookup-getter.js":[function(require,module,exports) {
-'use strict';
+// https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap
 var $export = require('./_export');
+var flattenIntoArray = require('./_flatten-into-array');
 var toObject = require('./_to-object');
-var toPrimitive = require('./_to-primitive');
-var getPrototypeOf = require('./_object-gpo');
-var getOwnPropertyDescriptor = require('./_object-gopd').f;
+var toLength = require('./_to-length');
+var aFunction = require('./_a-function');
+var arraySpeciesCreate = require('./_array-species-create');
 
-// B.2.2.4 Object.prototype.__lookupGetter__(P)
-require('./_descriptors') && $export($export.P + require('./_object-forced-pam'), 'Object', {
-  __lookupGetter__: function __lookupGetter__(P) {
+$export($export.P, 'Array', {
+  flatMap: function flatMap(callbackfn /* , thisArg */) {
     var O = toObject(this);
-    var K = toPrimitive(P, true);
-    var D;
-    do {
-      if (D = getOwnPropertyDescriptor(O, K)) return D.get;
-    } while (O = getPrototypeOf(O));
+    var sourceLen, A;
+    aFunction(callbackfn);
+    sourceLen = toLength(O.length);
+    A = arraySpeciesCreate(O, 0);
+    flattenIntoArray(A, O, O, sourceLen, 0, 1, callbackfn, arguments[1]);
+    return A;
   }
 });
 
-},{"./_export":"../../node_modules/core-js/modules/_export.js","./_to-object":"../../node_modules/core-js/modules/_to-object.js","./_to-primitive":"../../node_modules/core-js/modules/_to-primitive.js","./_object-gpo":"../../node_modules/core-js/modules/_object-gpo.js","./_object-gopd":"../../node_modules/core-js/modules/_object-gopd.js","./_descriptors":"../../node_modules/core-js/modules/_descriptors.js","./_object-forced-pam":"../../node_modules/core-js/modules/_object-forced-pam.js"}],"../../node_modules/core-js/modules/es7.object.lookup-setter.js":[function(require,module,exports) {
+require('./_add-to-unscopables')('flatMap');
+
+},{"./_export":"../../node_modules/core-js/modules/_export.js","./_flatten-into-array":"../../node_modules/core-js/modules/_flatten-into-array.js","./_to-object":"../../node_modules/core-js/modules/_to-object.js","./_to-length":"../../node_modules/core-js/modules/_to-length.js","./_a-function":"../../node_modules/core-js/modules/_a-function.js","./_array-species-create":"../../node_modules/core-js/modules/_array-species-create.js","./_add-to-unscopables":"../../node_modules/core-js/modules/_add-to-unscopables.js"}],"../../node_modules/core-js/modules/_strict-method.js":[function(require,module,exports) {
+'use strict';
+var fails = require('./_fails');
+
+module.exports = function (method, arg) {
+  return !!method && fails(function () {
+    // eslint-disable-next-line no-useless-call
+    arg ? method.call(null, function () { /* empty */ }, 1) : method.call(null);
+  });
+};
+
+},{"./_fails":"../../node_modules/core-js/modules/_fails.js"}],"../../node_modules/core-js/modules/es6.array.sort.js":[function(require,module,exports) {
 'use strict';
 var $export = require('./_export');
+var aFunction = require('./_a-function');
 var toObject = require('./_to-object');
-var toPrimitive = require('./_to-primitive');
-var getPrototypeOf = require('./_object-gpo');
-var getOwnPropertyDescriptor = require('./_object-gopd').f;
+var fails = require('./_fails');
+var $sort = [].sort;
+var test = [1, 2, 3];
 
-// B.2.2.5 Object.prototype.__lookupSetter__(P)
-require('./_descriptors') && $export($export.P + require('./_object-forced-pam'), 'Object', {
-  __lookupSetter__: function __lookupSetter__(P) {
-    var O = toObject(this);
-    var K = toPrimitive(P, true);
-    var D;
-    do {
-      if (D = getOwnPropertyDescriptor(O, K)) return D.set;
-    } while (O = getPrototypeOf(O));
+$export($export.P + $export.F * (fails(function () {
+  // IE8-
+  test.sort(undefined);
+}) || !fails(function () {
+  // V8 bug
+  test.sort(null);
+  // Old WebKit
+}) || !require('./_strict-method')($sort)), 'Array', {
+  // 22.1.3.25 Array.prototype.sort(comparefn)
+  sort: function sort(comparefn) {
+    return comparefn === undefined
+      ? $sort.call(toObject(this))
+      : $sort.call(toObject(this), aFunction(comparefn));
   }
 });
 
-},{"./_export":"../../node_modules/core-js/modules/_export.js","./_to-object":"../../node_modules/core-js/modules/_to-object.js","./_to-primitive":"../../node_modules/core-js/modules/_to-primitive.js","./_object-gpo":"../../node_modules/core-js/modules/_object-gpo.js","./_object-gopd":"../../node_modules/core-js/modules/_object-gopd.js","./_descriptors":"../../node_modules/core-js/modules/_descriptors.js","./_object-forced-pam":"../../node_modules/core-js/modules/_object-forced-pam.js"}],"../../node_modules/core-js/modules/_wks.js":[function(require,module,exports) {
-var store = require('./_shared')('wks');
-var uid = require('./_uid');
-var Symbol = require('./_global').Symbol;
-var USE_SYMBOL = typeof Symbol == 'function';
-
-var $exports = module.exports = function (name) {
-  return store[name] || (store[name] =
-    USE_SYMBOL && Symbol[name] || (USE_SYMBOL ? Symbol : uid)('Symbol.' + name));
-};
-
-$exports.store = store;
-
-},{"./_shared":"../../node_modules/core-js/modules/_shared.js","./_uid":"../../node_modules/core-js/modules/_uid.js","./_global":"../../node_modules/core-js/modules/_global.js"}],"../../node_modules/core-js/modules/_species-constructor.js":[function(require,module,exports) {
+},{"./_export":"../../node_modules/core-js/modules/_export.js","./_a-function":"../../node_modules/core-js/modules/_a-function.js","./_to-object":"../../node_modules/core-js/modules/_to-object.js","./_fails":"../../node_modules/core-js/modules/_fails.js","./_strict-method":"../../node_modules/core-js/modules/_strict-method.js"}],"../../node_modules/core-js/modules/_species-constructor.js":[function(require,module,exports) {
 // 7.3.20 SpeciesConstructor(O, defaultConstructor)
 var anObject = require('./_an-object');
 var aFunction = require('./_a-function');
@@ -577,900 +626,7 @@ $export($export.P + $export.R, 'Promise', { 'finally': function (onFinally) {
   );
 } });
 
-},{"./_export":"../../node_modules/core-js/modules/_export.js","./_core":"../../node_modules/core-js/modules/_core.js","./_global":"../../node_modules/core-js/modules/_global.js","./_species-constructor":"../../node_modules/core-js/modules/_species-constructor.js","./_promise-resolve":"../../node_modules/core-js/modules/_promise-resolve.js"}],"../../node_modules/core-js/modules/_set-proto.js":[function(require,module,exports) {
-// Works with __proto__ only. Old v8 can't work with null proto objects.
-/* eslint-disable no-proto */
-var isObject = require('./_is-object');
-var anObject = require('./_an-object');
-var check = function (O, proto) {
-  anObject(O);
-  if (!isObject(proto) && proto !== null) throw TypeError(proto + ": can't set as prototype!");
-};
-module.exports = {
-  set: Object.setPrototypeOf || ('__proto__' in {} ? // eslint-disable-line
-    function (test, buggy, set) {
-      try {
-        set = require('./_ctx')(Function.call, require('./_object-gopd').f(Object.prototype, '__proto__').set, 2);
-        set(test, []);
-        buggy = !(test instanceof Array);
-      } catch (e) { buggy = true; }
-      return function setPrototypeOf(O, proto) {
-        check(O, proto);
-        if (buggy) O.__proto__ = proto;
-        else set(O, proto);
-        return O;
-      };
-    }({}, false) : undefined),
-  check: check
-};
-
-},{"./_is-object":"../../node_modules/core-js/modules/_is-object.js","./_an-object":"../../node_modules/core-js/modules/_an-object.js","./_ctx":"../../node_modules/core-js/modules/_ctx.js","./_object-gopd":"../../node_modules/core-js/modules/_object-gopd.js"}],"../../node_modules/core-js/modules/_inherit-if-required.js":[function(require,module,exports) {
-var isObject = require('./_is-object');
-var setPrototypeOf = require('./_set-proto').set;
-module.exports = function (that, target, C) {
-  var S = target.constructor;
-  var P;
-  if (S !== C && typeof S == 'function' && (P = S.prototype) !== C.prototype && isObject(P) && setPrototypeOf) {
-    setPrototypeOf(that, P);
-  } return that;
-};
-
-},{"./_is-object":"../../node_modules/core-js/modules/_is-object.js","./_set-proto":"../../node_modules/core-js/modules/_set-proto.js"}],"../../node_modules/core-js/modules/_to-integer.js":[function(require,module,exports) {
-// 7.1.4 ToInteger
-var ceil = Math.ceil;
-var floor = Math.floor;
-module.exports = function (it) {
-  return isNaN(it = +it) ? 0 : (it > 0 ? floor : ceil)(it);
-};
-
-},{}],"../../node_modules/core-js/modules/_to-length.js":[function(require,module,exports) {
-// 7.1.15 ToLength
-var toInteger = require('./_to-integer');
-var min = Math.min;
-module.exports = function (it) {
-  return it > 0 ? min(toInteger(it), 0x1fffffffffffff) : 0; // pow(2, 53) - 1 == 9007199254740991
-};
-
-},{"./_to-integer":"../../node_modules/core-js/modules/_to-integer.js"}],"../../node_modules/core-js/modules/_to-absolute-index.js":[function(require,module,exports) {
-var toInteger = require('./_to-integer');
-var max = Math.max;
-var min = Math.min;
-module.exports = function (index, length) {
-  index = toInteger(index);
-  return index < 0 ? max(index + length, 0) : min(index, length);
-};
-
-},{"./_to-integer":"../../node_modules/core-js/modules/_to-integer.js"}],"../../node_modules/core-js/modules/_array-includes.js":[function(require,module,exports) {
-// false -> Array#indexOf
-// true  -> Array#includes
-var toIObject = require('./_to-iobject');
-var toLength = require('./_to-length');
-var toAbsoluteIndex = require('./_to-absolute-index');
-module.exports = function (IS_INCLUDES) {
-  return function ($this, el, fromIndex) {
-    var O = toIObject($this);
-    var length = toLength(O.length);
-    var index = toAbsoluteIndex(fromIndex, length);
-    var value;
-    // Array#includes uses SameValueZero equality algorithm
-    // eslint-disable-next-line no-self-compare
-    if (IS_INCLUDES && el != el) while (length > index) {
-      value = O[index++];
-      // eslint-disable-next-line no-self-compare
-      if (value != value) return true;
-    // Array#indexOf ignores holes, Array#includes - not
-    } else for (;length > index; index++) if (IS_INCLUDES || index in O) {
-      if (O[index] === el) return IS_INCLUDES || index || 0;
-    } return !IS_INCLUDES && -1;
-  };
-};
-
-},{"./_to-iobject":"../../node_modules/core-js/modules/_to-iobject.js","./_to-length":"../../node_modules/core-js/modules/_to-length.js","./_to-absolute-index":"../../node_modules/core-js/modules/_to-absolute-index.js"}],"../../node_modules/core-js/modules/_object-keys-internal.js":[function(require,module,exports) {
-var has = require('./_has');
-var toIObject = require('./_to-iobject');
-var arrayIndexOf = require('./_array-includes')(false);
-var IE_PROTO = require('./_shared-key')('IE_PROTO');
-
-module.exports = function (object, names) {
-  var O = toIObject(object);
-  var i = 0;
-  var result = [];
-  var key;
-  for (key in O) if (key != IE_PROTO) has(O, key) && result.push(key);
-  // Don't enum bug & hidden keys
-  while (names.length > i) if (has(O, key = names[i++])) {
-    ~arrayIndexOf(result, key) || result.push(key);
-  }
-  return result;
-};
-
-},{"./_has":"../../node_modules/core-js/modules/_has.js","./_to-iobject":"../../node_modules/core-js/modules/_to-iobject.js","./_array-includes":"../../node_modules/core-js/modules/_array-includes.js","./_shared-key":"../../node_modules/core-js/modules/_shared-key.js"}],"../../node_modules/core-js/modules/_enum-bug-keys.js":[function(require,module,exports) {
-// IE 8- don't enum bug keys
-module.exports = (
-  'constructor,hasOwnProperty,isPrototypeOf,propertyIsEnumerable,toLocaleString,toString,valueOf'
-).split(',');
-
-},{}],"../../node_modules/core-js/modules/_object-gopn.js":[function(require,module,exports) {
-// 19.1.2.7 / 15.2.3.4 Object.getOwnPropertyNames(O)
-var $keys = require('./_object-keys-internal');
-var hiddenKeys = require('./_enum-bug-keys').concat('length', 'prototype');
-
-exports.f = Object.getOwnPropertyNames || function getOwnPropertyNames(O) {
-  return $keys(O, hiddenKeys);
-};
-
-},{"./_object-keys-internal":"../../node_modules/core-js/modules/_object-keys-internal.js","./_enum-bug-keys":"../../node_modules/core-js/modules/_enum-bug-keys.js"}],"../../node_modules/core-js/modules/_is-regexp.js":[function(require,module,exports) {
-// 7.2.8 IsRegExp(argument)
-var isObject = require('./_is-object');
-var cof = require('./_cof');
-var MATCH = require('./_wks')('match');
-module.exports = function (it) {
-  var isRegExp;
-  return isObject(it) && ((isRegExp = it[MATCH]) !== undefined ? !!isRegExp : cof(it) == 'RegExp');
-};
-
-},{"./_is-object":"../../node_modules/core-js/modules/_is-object.js","./_cof":"../../node_modules/core-js/modules/_cof.js","./_wks":"../../node_modules/core-js/modules/_wks.js"}],"../../node_modules/core-js/modules/_flags.js":[function(require,module,exports) {
-'use strict';
-// 21.2.5.3 get RegExp.prototype.flags
-var anObject = require('./_an-object');
-module.exports = function () {
-  var that = anObject(this);
-  var result = '';
-  if (that.global) result += 'g';
-  if (that.ignoreCase) result += 'i';
-  if (that.multiline) result += 'm';
-  if (that.unicode) result += 'u';
-  if (that.sticky) result += 'y';
-  return result;
-};
-
-},{"./_an-object":"../../node_modules/core-js/modules/_an-object.js"}],"../../node_modules/core-js/modules/_set-species.js":[function(require,module,exports) {
-
-'use strict';
-var global = require('./_global');
-var dP = require('./_object-dp');
-var DESCRIPTORS = require('./_descriptors');
-var SPECIES = require('./_wks')('species');
-
-module.exports = function (KEY) {
-  var C = global[KEY];
-  if (DESCRIPTORS && C && !C[SPECIES]) dP.f(C, SPECIES, {
-    configurable: true,
-    get: function () { return this; }
-  });
-};
-
-},{"./_global":"../../node_modules/core-js/modules/_global.js","./_object-dp":"../../node_modules/core-js/modules/_object-dp.js","./_descriptors":"../../node_modules/core-js/modules/_descriptors.js","./_wks":"../../node_modules/core-js/modules/_wks.js"}],"../../node_modules/core-js/modules/es6.regexp.constructor.js":[function(require,module,exports) {
-
-var global = require('./_global');
-var inheritIfRequired = require('./_inherit-if-required');
-var dP = require('./_object-dp').f;
-var gOPN = require('./_object-gopn').f;
-var isRegExp = require('./_is-regexp');
-var $flags = require('./_flags');
-var $RegExp = global.RegExp;
-var Base = $RegExp;
-var proto = $RegExp.prototype;
-var re1 = /a/g;
-var re2 = /a/g;
-// "new" creates a new object, old webkit buggy here
-var CORRECT_NEW = new $RegExp(re1) !== re1;
-
-if (require('./_descriptors') && (!CORRECT_NEW || require('./_fails')(function () {
-  re2[require('./_wks')('match')] = false;
-  // RegExp constructor can alter flags and IsRegExp works correct with @@match
-  return $RegExp(re1) != re1 || $RegExp(re2) == re2 || $RegExp(re1, 'i') != '/a/i';
-}))) {
-  $RegExp = function RegExp(p, f) {
-    var tiRE = this instanceof $RegExp;
-    var piRE = isRegExp(p);
-    var fiU = f === undefined;
-    return !tiRE && piRE && p.constructor === $RegExp && fiU ? p
-      : inheritIfRequired(CORRECT_NEW
-        ? new Base(piRE && !fiU ? p.source : p, f)
-        : Base((piRE = p instanceof $RegExp) ? p.source : p, piRE && fiU ? $flags.call(p) : f)
-      , tiRE ? this : proto, $RegExp);
-  };
-  var proxy = function (key) {
-    key in $RegExp || dP($RegExp, key, {
-      configurable: true,
-      get: function () { return Base[key]; },
-      set: function (it) { Base[key] = it; }
-    });
-  };
-  for (var keys = gOPN(Base), i = 0; keys.length > i;) proxy(keys[i++]);
-  proto.constructor = $RegExp;
-  $RegExp.prototype = proto;
-  require('./_redefine')(global, 'RegExp', $RegExp);
-}
-
-require('./_set-species')('RegExp');
-
-},{"./_global":"../../node_modules/core-js/modules/_global.js","./_inherit-if-required":"../../node_modules/core-js/modules/_inherit-if-required.js","./_object-dp":"../../node_modules/core-js/modules/_object-dp.js","./_object-gopn":"../../node_modules/core-js/modules/_object-gopn.js","./_is-regexp":"../../node_modules/core-js/modules/_is-regexp.js","./_flags":"../../node_modules/core-js/modules/_flags.js","./_descriptors":"../../node_modules/core-js/modules/_descriptors.js","./_fails":"../../node_modules/core-js/modules/_fails.js","./_wks":"../../node_modules/core-js/modules/_wks.js","./_redefine":"../../node_modules/core-js/modules/_redefine.js","./_set-species":"../../node_modules/core-js/modules/_set-species.js"}],"../../node_modules/core-js/modules/es6.regexp.flags.js":[function(require,module,exports) {
-// 21.2.5.3 get RegExp.prototype.flags()
-if (require('./_descriptors') && /./g.flags != 'g') require('./_object-dp').f(RegExp.prototype, 'flags', {
-  configurable: true,
-  get: require('./_flags')
-});
-
-},{"./_descriptors":"../../node_modules/core-js/modules/_descriptors.js","./_object-dp":"../../node_modules/core-js/modules/_object-dp.js","./_flags":"../../node_modules/core-js/modules/_flags.js"}],"../../node_modules/core-js/modules/_string-at.js":[function(require,module,exports) {
-var toInteger = require('./_to-integer');
-var defined = require('./_defined');
-// true  -> String#at
-// false -> String#codePointAt
-module.exports = function (TO_STRING) {
-  return function (that, pos) {
-    var s = String(defined(that));
-    var i = toInteger(pos);
-    var l = s.length;
-    var a, b;
-    if (i < 0 || i >= l) return TO_STRING ? '' : undefined;
-    a = s.charCodeAt(i);
-    return a < 0xd800 || a > 0xdbff || i + 1 === l || (b = s.charCodeAt(i + 1)) < 0xdc00 || b > 0xdfff
-      ? TO_STRING ? s.charAt(i) : a
-      : TO_STRING ? s.slice(i, i + 2) : (a - 0xd800 << 10) + (b - 0xdc00) + 0x10000;
-  };
-};
-
-},{"./_to-integer":"../../node_modules/core-js/modules/_to-integer.js","./_defined":"../../node_modules/core-js/modules/_defined.js"}],"../../node_modules/core-js/modules/_advance-string-index.js":[function(require,module,exports) {
-'use strict';
-var at = require('./_string-at')(true);
-
- // `AdvanceStringIndex` abstract operation
-// https://tc39.github.io/ecma262/#sec-advancestringindex
-module.exports = function (S, index, unicode) {
-  return index + (unicode ? at(S, index).length : 1);
-};
-
-},{"./_string-at":"../../node_modules/core-js/modules/_string-at.js"}],"../../node_modules/core-js/modules/_classof.js":[function(require,module,exports) {
-// getting tag from 19.1.3.6 Object.prototype.toString()
-var cof = require('./_cof');
-var TAG = require('./_wks')('toStringTag');
-// ES3 wrong here
-var ARG = cof(function () { return arguments; }()) == 'Arguments';
-
-// fallback for IE11 Script Access Denied error
-var tryGet = function (it, key) {
-  try {
-    return it[key];
-  } catch (e) { /* empty */ }
-};
-
-module.exports = function (it) {
-  var O, T, B;
-  return it === undefined ? 'Undefined' : it === null ? 'Null'
-    // @@toStringTag case
-    : typeof (T = tryGet(O = Object(it), TAG)) == 'string' ? T
-    // builtinTag case
-    : ARG ? cof(O)
-    // ES3 arguments fallback
-    : (B = cof(O)) == 'Object' && typeof O.callee == 'function' ? 'Arguments' : B;
-};
-
-},{"./_cof":"../../node_modules/core-js/modules/_cof.js","./_wks":"../../node_modules/core-js/modules/_wks.js"}],"../../node_modules/core-js/modules/_regexp-exec-abstract.js":[function(require,module,exports) {
-'use strict';
-
-var classof = require('./_classof');
-var builtinExec = RegExp.prototype.exec;
-
- // `RegExpExec` abstract operation
-// https://tc39.github.io/ecma262/#sec-regexpexec
-module.exports = function (R, S) {
-  var exec = R.exec;
-  if (typeof exec === 'function') {
-    var result = exec.call(R, S);
-    if (typeof result !== 'object') {
-      throw new TypeError('RegExp exec method returned something other than an Object or null');
-    }
-    return result;
-  }
-  if (classof(R) !== 'RegExp') {
-    throw new TypeError('RegExp#exec called on incompatible receiver');
-  }
-  return builtinExec.call(R, S);
-};
-
-},{"./_classof":"../../node_modules/core-js/modules/_classof.js"}],"../../node_modules/core-js/modules/_regexp-exec.js":[function(require,module,exports) {
-'use strict';
-
-var regexpFlags = require('./_flags');
-
-var nativeExec = RegExp.prototype.exec;
-// This always refers to the native implementation, because the
-// String#replace polyfill uses ./fix-regexp-well-known-symbol-logic.js,
-// which loads this file before patching the method.
-var nativeReplace = String.prototype.replace;
-
-var patchedExec = nativeExec;
-
-var LAST_INDEX = 'lastIndex';
-
-var UPDATES_LAST_INDEX_WRONG = (function () {
-  var re1 = /a/,
-      re2 = /b*/g;
-  nativeExec.call(re1, 'a');
-  nativeExec.call(re2, 'a');
-  return re1[LAST_INDEX] !== 0 || re2[LAST_INDEX] !== 0;
-})();
-
-// nonparticipating capturing group, copied from es5-shim's String#split patch.
-var NPCG_INCLUDED = /()??/.exec('')[1] !== undefined;
-
-var PATCH = UPDATES_LAST_INDEX_WRONG || NPCG_INCLUDED;
-
-if (PATCH) {
-  patchedExec = function exec(str) {
-    var re = this;
-    var lastIndex, reCopy, match, i;
-
-    if (NPCG_INCLUDED) {
-      reCopy = new RegExp('^' + re.source + '$(?!\\s)', regexpFlags.call(re));
-    }
-    if (UPDATES_LAST_INDEX_WRONG) lastIndex = re[LAST_INDEX];
-
-    match = nativeExec.call(re, str);
-
-    if (UPDATES_LAST_INDEX_WRONG && match) {
-      re[LAST_INDEX] = re.global ? match.index + match[0].length : lastIndex;
-    }
-    if (NPCG_INCLUDED && match && match.length > 1) {
-      // Fix browsers whose `exec` methods don't consistently return `undefined`
-      // for NPCG, like IE8. NOTE: This doesn' work for /(.?)?/
-      // eslint-disable-next-line no-loop-func
-      nativeReplace.call(match[0], reCopy, function () {
-        for (i = 1; i < arguments.length - 2; i++) {
-          if (arguments[i] === undefined) match[i] = undefined;
-        }
-      });
-    }
-
-    return match;
-  };
-}
-
-module.exports = patchedExec;
-
-},{"./_flags":"../../node_modules/core-js/modules/_flags.js"}],"../../node_modules/core-js/modules/es6.regexp.exec.js":[function(require,module,exports) {
-'use strict';
-var regexpExec = require('./_regexp-exec');
-require('./_export')({
-  target: 'RegExp',
-  proto: true,
-  forced: regexpExec !== /./.exec
-}, {
-  exec: regexpExec
-});
-
-},{"./_regexp-exec":"../../node_modules/core-js/modules/_regexp-exec.js","./_export":"../../node_modules/core-js/modules/_export.js"}],"../../node_modules/core-js/modules/_fix-re-wks.js":[function(require,module,exports) {
-'use strict';
-require('./es6.regexp.exec');
-var redefine = require('./_redefine');
-var hide = require('./_hide');
-var fails = require('./_fails');
-var defined = require('./_defined');
-var wks = require('./_wks');
-var regexpExec = require('./_regexp-exec');
-
-var SPECIES = wks('species');
-
-var REPLACE_SUPPORTS_NAMED_GROUPS = !fails(function () {
-  // #replace needs built-in support for named groups.
-  // #match works fine because it just return the exec results, even if it has
-  // a "grops" property.
-  var re = /./;
-  re.exec = function () {
-    var result = [];
-    result.groups = { a: '7' };
-    return result;
-  };
-  return ''.replace(re, '$<a>') !== '7';
-});
-
-var SPLIT_WORKS_WITH_OVERWRITTEN_EXEC = (function () {
-  // Chrome 51 has a buggy "split" implementation when RegExp#exec !== nativeExec
-  var re = /(?:)/;
-  var originalExec = re.exec;
-  re.exec = function () { return originalExec.apply(this, arguments); };
-  var result = 'ab'.split(re);
-  return result.length === 2 && result[0] === 'a' && result[1] === 'b';
-})();
-
-module.exports = function (KEY, length, exec) {
-  var SYMBOL = wks(KEY);
-
-  var DELEGATES_TO_SYMBOL = !fails(function () {
-    // String methods call symbol-named RegEp methods
-    var O = {};
-    O[SYMBOL] = function () { return 7; };
-    return ''[KEY](O) != 7;
-  });
-
-  var DELEGATES_TO_EXEC = DELEGATES_TO_SYMBOL ? !fails(function () {
-    // Symbol-named RegExp methods call .exec
-    var execCalled = false;
-    var re = /a/;
-    re.exec = function () { execCalled = true; return null; };
-    if (KEY === 'split') {
-      // RegExp[@@split] doesn't call the regex's exec method, but first creates
-      // a new one. We need to return the patched regex when creating the new one.
-      re.constructor = {};
-      re.constructor[SPECIES] = function () { return re; };
-    }
-    re[SYMBOL]('');
-    return !execCalled;
-  }) : undefined;
-
-  if (
-    !DELEGATES_TO_SYMBOL ||
-    !DELEGATES_TO_EXEC ||
-    (KEY === 'replace' && !REPLACE_SUPPORTS_NAMED_GROUPS) ||
-    (KEY === 'split' && !SPLIT_WORKS_WITH_OVERWRITTEN_EXEC)
-  ) {
-    var nativeRegExpMethod = /./[SYMBOL];
-    var fns = exec(
-      defined,
-      SYMBOL,
-      ''[KEY],
-      function maybeCallNative(nativeMethod, regexp, str, arg2, forceStringMethod) {
-        if (regexp.exec === regexpExec) {
-          if (DELEGATES_TO_SYMBOL && !forceStringMethod) {
-            // The native String method already delegates to @@method (this
-            // polyfilled function), leasing to infinite recursion.
-            // We avoid it by directly calling the native @@method method.
-            return { done: true, value: nativeRegExpMethod.call(regexp, str, arg2) };
-          }
-          return { done: true, value: nativeMethod.call(str, regexp, arg2) };
-        }
-        return { done: false };
-      }
-    );
-    var strfn = fns[0];
-    var rxfn = fns[1];
-
-    redefine(String.prototype, KEY, strfn);
-    hide(RegExp.prototype, SYMBOL, length == 2
-      // 21.2.5.8 RegExp.prototype[@@replace](string, replaceValue)
-      // 21.2.5.11 RegExp.prototype[@@split](string, limit)
-      ? function (string, arg) { return rxfn.call(string, this, arg); }
-      // 21.2.5.6 RegExp.prototype[@@match](string)
-      // 21.2.5.9 RegExp.prototype[@@search](string)
-      : function (string) { return rxfn.call(string, this); }
-    );
-  }
-};
-
-},{"./es6.regexp.exec":"../../node_modules/core-js/modules/es6.regexp.exec.js","./_redefine":"../../node_modules/core-js/modules/_redefine.js","./_hide":"../../node_modules/core-js/modules/_hide.js","./_fails":"../../node_modules/core-js/modules/_fails.js","./_defined":"../../node_modules/core-js/modules/_defined.js","./_wks":"../../node_modules/core-js/modules/_wks.js","./_regexp-exec":"../../node_modules/core-js/modules/_regexp-exec.js"}],"../../node_modules/core-js/modules/es6.regexp.match.js":[function(require,module,exports) {
-'use strict';
-
-var anObject = require('./_an-object');
-var toLength = require('./_to-length');
-var advanceStringIndex = require('./_advance-string-index');
-var regExpExec = require('./_regexp-exec-abstract');
-
-// @@match logic
-require('./_fix-re-wks')('match', 1, function (defined, MATCH, $match, maybeCallNative) {
-  return [
-    // `String.prototype.match` method
-    // https://tc39.github.io/ecma262/#sec-string.prototype.match
-    function match(regexp) {
-      var O = defined(this);
-      var fn = regexp == undefined ? undefined : regexp[MATCH];
-      return fn !== undefined ? fn.call(regexp, O) : new RegExp(regexp)[MATCH](String(O));
-    },
-    // `RegExp.prototype[@@match]` method
-    // https://tc39.github.io/ecma262/#sec-regexp.prototype-@@match
-    function (regexp) {
-      var res = maybeCallNative($match, regexp, this);
-      if (res.done) return res.value;
-      var rx = anObject(regexp);
-      var S = String(this);
-      if (!rx.global) return regExpExec(rx, S);
-      var fullUnicode = rx.unicode;
-      rx.lastIndex = 0;
-      var A = [];
-      var n = 0;
-      var result;
-      while ((result = regExpExec(rx, S)) !== null) {
-        var matchStr = String(result[0]);
-        A[n] = matchStr;
-        if (matchStr === '') rx.lastIndex = advanceStringIndex(S, toLength(rx.lastIndex), fullUnicode);
-        n++;
-      }
-      return n === 0 ? null : A;
-    }
-  ];
-});
-
-},{"./_an-object":"../../node_modules/core-js/modules/_an-object.js","./_to-length":"../../node_modules/core-js/modules/_to-length.js","./_advance-string-index":"../../node_modules/core-js/modules/_advance-string-index.js","./_regexp-exec-abstract":"../../node_modules/core-js/modules/_regexp-exec-abstract.js","./_fix-re-wks":"../../node_modules/core-js/modules/_fix-re-wks.js"}],"../../node_modules/core-js/modules/es6.regexp.replace.js":[function(require,module,exports) {
-var global = arguments[3];
-'use strict';
-
-var anObject = require('./_an-object');
-var toObject = require('./_to-object');
-var toLength = require('./_to-length');
-var toInteger = require('./_to-integer');
-var advanceStringIndex = require('./_advance-string-index');
-var regExpExec = require('./_regexp-exec-abstract');
-var max = Math.max;
-var min = Math.min;
-var floor = Math.floor;
-var SUBSTITUTION_SYMBOLS = /\$([$&`']|\d\d?|<[^>]*>)/g;
-var SUBSTITUTION_SYMBOLS_NO_NAMED = /\$([$&`']|\d\d?)/g;
-
-var maybeToString = function (it) {
-  return it === undefined ? it : String(it);
-};
-
-// @@replace logic
-require('./_fix-re-wks')('replace', 2, function (defined, REPLACE, $replace, maybeCallNative) {
-  return [
-    // `String.prototype.replace` method
-    // https://tc39.github.io/ecma262/#sec-string.prototype.replace
-    function replace(searchValue, replaceValue) {
-      var O = defined(this);
-      var fn = searchValue == undefined ? undefined : searchValue[REPLACE];
-      return fn !== undefined
-        ? fn.call(searchValue, O, replaceValue)
-        : $replace.call(String(O), searchValue, replaceValue);
-    },
-    // `RegExp.prototype[@@replace]` method
-    // https://tc39.github.io/ecma262/#sec-regexp.prototype-@@replace
-    function (regexp, replaceValue) {
-      var res = maybeCallNative($replace, regexp, this, replaceValue);
-      if (res.done) return res.value;
-
-      var rx = anObject(regexp);
-      var S = String(this);
-      var functionalReplace = typeof replaceValue === 'function';
-      if (!functionalReplace) replaceValue = String(replaceValue);
-      var global = rx.global;
-      if (global) {
-        var fullUnicode = rx.unicode;
-        rx.lastIndex = 0;
-      }
-      var results = [];
-      while (true) {
-        var result = regExpExec(rx, S);
-        if (result === null) break;
-        results.push(result);
-        if (!global) break;
-        var matchStr = String(result[0]);
-        if (matchStr === '') rx.lastIndex = advanceStringIndex(S, toLength(rx.lastIndex), fullUnicode);
-      }
-      var accumulatedResult = '';
-      var nextSourcePosition = 0;
-      for (var i = 0; i < results.length; i++) {
-        result = results[i];
-        var matched = String(result[0]);
-        var position = max(min(toInteger(result.index), S.length), 0);
-        var captures = [];
-        // NOTE: This is equivalent to
-        //   captures = result.slice(1).map(maybeToString)
-        // but for some reason `nativeSlice.call(result, 1, result.length)` (called in
-        // the slice polyfill when slicing native arrays) "doesn't work" in safari 9 and
-        // causes a crash (https://pastebin.com/N21QzeQA) when trying to debug it.
-        for (var j = 1; j < result.length; j++) captures.push(maybeToString(result[j]));
-        var namedCaptures = result.groups;
-        if (functionalReplace) {
-          var replacerArgs = [matched].concat(captures, position, S);
-          if (namedCaptures !== undefined) replacerArgs.push(namedCaptures);
-          var replacement = String(replaceValue.apply(undefined, replacerArgs));
-        } else {
-          replacement = getSubstitution(matched, S, position, captures, namedCaptures, replaceValue);
-        }
-        if (position >= nextSourcePosition) {
-          accumulatedResult += S.slice(nextSourcePosition, position) + replacement;
-          nextSourcePosition = position + matched.length;
-        }
-      }
-      return accumulatedResult + S.slice(nextSourcePosition);
-    }
-  ];
-
-    // https://tc39.github.io/ecma262/#sec-getsubstitution
-  function getSubstitution(matched, str, position, captures, namedCaptures, replacement) {
-    var tailPos = position + matched.length;
-    var m = captures.length;
-    var symbols = SUBSTITUTION_SYMBOLS_NO_NAMED;
-    if (namedCaptures !== undefined) {
-      namedCaptures = toObject(namedCaptures);
-      symbols = SUBSTITUTION_SYMBOLS;
-    }
-    return $replace.call(replacement, symbols, function (match, ch) {
-      var capture;
-      switch (ch.charAt(0)) {
-        case '$': return '$';
-        case '&': return matched;
-        case '`': return str.slice(0, position);
-        case "'": return str.slice(tailPos);
-        case '<':
-          capture = namedCaptures[ch.slice(1, -1)];
-          break;
-        default: // \d\d?
-          var n = +ch;
-          if (n === 0) return match;
-          if (n > m) {
-            var f = floor(n / 10);
-            if (f === 0) return match;
-            if (f <= m) return captures[f - 1] === undefined ? ch.charAt(1) : captures[f - 1] + ch.charAt(1);
-            return match;
-          }
-          capture = captures[n - 1];
-      }
-      return capture === undefined ? '' : capture;
-    });
-  }
-});
-
-},{"./_an-object":"../../node_modules/core-js/modules/_an-object.js","./_to-object":"../../node_modules/core-js/modules/_to-object.js","./_to-length":"../../node_modules/core-js/modules/_to-length.js","./_to-integer":"../../node_modules/core-js/modules/_to-integer.js","./_advance-string-index":"../../node_modules/core-js/modules/_advance-string-index.js","./_regexp-exec-abstract":"../../node_modules/core-js/modules/_regexp-exec-abstract.js","./_fix-re-wks":"../../node_modules/core-js/modules/_fix-re-wks.js"}],"../../node_modules/core-js/modules/es6.regexp.split.js":[function(require,module,exports) {
-'use strict';
-
-var isRegExp = require('./_is-regexp');
-var anObject = require('./_an-object');
-var speciesConstructor = require('./_species-constructor');
-var advanceStringIndex = require('./_advance-string-index');
-var toLength = require('./_to-length');
-var callRegExpExec = require('./_regexp-exec-abstract');
-var regexpExec = require('./_regexp-exec');
-var fails = require('./_fails');
-var $min = Math.min;
-var $push = [].push;
-var $SPLIT = 'split';
-var LENGTH = 'length';
-var LAST_INDEX = 'lastIndex';
-var MAX_UINT32 = 0xffffffff;
-
-// babel-minify transpiles RegExp('x', 'y') -> /x/y and it causes SyntaxError
-var SUPPORTS_Y = !fails(function () { RegExp(MAX_UINT32, 'y'); });
-
-// @@split logic
-require('./_fix-re-wks')('split', 2, function (defined, SPLIT, $split, maybeCallNative) {
-  var internalSplit;
-  if (
-    'abbc'[$SPLIT](/(b)*/)[1] == 'c' ||
-    'test'[$SPLIT](/(?:)/, -1)[LENGTH] != 4 ||
-    'ab'[$SPLIT](/(?:ab)*/)[LENGTH] != 2 ||
-    '.'[$SPLIT](/(.?)(.?)/)[LENGTH] != 4 ||
-    '.'[$SPLIT](/()()/)[LENGTH] > 1 ||
-    ''[$SPLIT](/.?/)[LENGTH]
-  ) {
-    // based on es5-shim implementation, need to rework it
-    internalSplit = function (separator, limit) {
-      var string = String(this);
-      if (separator === undefined && limit === 0) return [];
-      // If `separator` is not a regex, use native split
-      if (!isRegExp(separator)) return $split.call(string, separator, limit);
-      var output = [];
-      var flags = (separator.ignoreCase ? 'i' : '') +
-                  (separator.multiline ? 'm' : '') +
-                  (separator.unicode ? 'u' : '') +
-                  (separator.sticky ? 'y' : '');
-      var lastLastIndex = 0;
-      var splitLimit = limit === undefined ? MAX_UINT32 : limit >>> 0;
-      // Make `global` and avoid `lastIndex` issues by working with a copy
-      var separatorCopy = new RegExp(separator.source, flags + 'g');
-      var match, lastIndex, lastLength;
-      while (match = regexpExec.call(separatorCopy, string)) {
-        lastIndex = separatorCopy[LAST_INDEX];
-        if (lastIndex > lastLastIndex) {
-          output.push(string.slice(lastLastIndex, match.index));
-          if (match[LENGTH] > 1 && match.index < string[LENGTH]) $push.apply(output, match.slice(1));
-          lastLength = match[0][LENGTH];
-          lastLastIndex = lastIndex;
-          if (output[LENGTH] >= splitLimit) break;
-        }
-        if (separatorCopy[LAST_INDEX] === match.index) separatorCopy[LAST_INDEX]++; // Avoid an infinite loop
-      }
-      if (lastLastIndex === string[LENGTH]) {
-        if (lastLength || !separatorCopy.test('')) output.push('');
-      } else output.push(string.slice(lastLastIndex));
-      return output[LENGTH] > splitLimit ? output.slice(0, splitLimit) : output;
-    };
-  // Chakra, V8
-  } else if ('0'[$SPLIT](undefined, 0)[LENGTH]) {
-    internalSplit = function (separator, limit) {
-      return separator === undefined && limit === 0 ? [] : $split.call(this, separator, limit);
-    };
-  } else {
-    internalSplit = $split;
-  }
-
-  return [
-    // `String.prototype.split` method
-    // https://tc39.github.io/ecma262/#sec-string.prototype.split
-    function split(separator, limit) {
-      var O = defined(this);
-      var splitter = separator == undefined ? undefined : separator[SPLIT];
-      return splitter !== undefined
-        ? splitter.call(separator, O, limit)
-        : internalSplit.call(String(O), separator, limit);
-    },
-    // `RegExp.prototype[@@split]` method
-    // https://tc39.github.io/ecma262/#sec-regexp.prototype-@@split
-    //
-    // NOTE: This cannot be properly polyfilled in engines that don't support
-    // the 'y' flag.
-    function (regexp, limit) {
-      var res = maybeCallNative(internalSplit, regexp, this, limit, internalSplit !== $split);
-      if (res.done) return res.value;
-
-      var rx = anObject(regexp);
-      var S = String(this);
-      var C = speciesConstructor(rx, RegExp);
-
-      var unicodeMatching = rx.unicode;
-      var flags = (rx.ignoreCase ? 'i' : '') +
-                  (rx.multiline ? 'm' : '') +
-                  (rx.unicode ? 'u' : '') +
-                  (SUPPORTS_Y ? 'y' : 'g');
-
-      // ^(? + rx + ) is needed, in combination with some S slicing, to
-      // simulate the 'y' flag.
-      var splitter = new C(SUPPORTS_Y ? rx : '^(?:' + rx.source + ')', flags);
-      var lim = limit === undefined ? MAX_UINT32 : limit >>> 0;
-      if (lim === 0) return [];
-      if (S.length === 0) return callRegExpExec(splitter, S) === null ? [S] : [];
-      var p = 0;
-      var q = 0;
-      var A = [];
-      while (q < S.length) {
-        splitter.lastIndex = SUPPORTS_Y ? q : 0;
-        var z = callRegExpExec(splitter, SUPPORTS_Y ? S : S.slice(q));
-        var e;
-        if (
-          z === null ||
-          (e = $min(toLength(splitter.lastIndex + (SUPPORTS_Y ? 0 : q)), S.length)) === p
-        ) {
-          q = advanceStringIndex(S, q, unicodeMatching);
-        } else {
-          A.push(S.slice(p, q));
-          if (A.length === lim) return A;
-          for (var i = 1; i <= z.length - 1; i++) {
-            A.push(z[i]);
-            if (A.length === lim) return A;
-          }
-          q = p = e;
-        }
-      }
-      A.push(S.slice(p));
-      return A;
-    }
-  ];
-});
-
-},{"./_is-regexp":"../../node_modules/core-js/modules/_is-regexp.js","./_an-object":"../../node_modules/core-js/modules/_an-object.js","./_species-constructor":"../../node_modules/core-js/modules/_species-constructor.js","./_advance-string-index":"../../node_modules/core-js/modules/_advance-string-index.js","./_to-length":"../../node_modules/core-js/modules/_to-length.js","./_regexp-exec-abstract":"../../node_modules/core-js/modules/_regexp-exec-abstract.js","./_regexp-exec":"../../node_modules/core-js/modules/_regexp-exec.js","./_fails":"../../node_modules/core-js/modules/_fails.js","./_fix-re-wks":"../../node_modules/core-js/modules/_fix-re-wks.js"}],"../../node_modules/core-js/modules/_same-value.js":[function(require,module,exports) {
-// 7.2.9 SameValue(x, y)
-module.exports = Object.is || function is(x, y) {
-  // eslint-disable-next-line no-self-compare
-  return x === y ? x !== 0 || 1 / x === 1 / y : x != x && y != y;
-};
-
-},{}],"../../node_modules/core-js/modules/es6.regexp.search.js":[function(require,module,exports) {
-'use strict';
-
-var anObject = require('./_an-object');
-var sameValue = require('./_same-value');
-var regExpExec = require('./_regexp-exec-abstract');
-
-// @@search logic
-require('./_fix-re-wks')('search', 1, function (defined, SEARCH, $search, maybeCallNative) {
-  return [
-    // `String.prototype.search` method
-    // https://tc39.github.io/ecma262/#sec-string.prototype.search
-    function search(regexp) {
-      var O = defined(this);
-      var fn = regexp == undefined ? undefined : regexp[SEARCH];
-      return fn !== undefined ? fn.call(regexp, O) : new RegExp(regexp)[SEARCH](String(O));
-    },
-    // `RegExp.prototype[@@search]` method
-    // https://tc39.github.io/ecma262/#sec-regexp.prototype-@@search
-    function (regexp) {
-      var res = maybeCallNative($search, regexp, this);
-      if (res.done) return res.value;
-      var rx = anObject(regexp);
-      var S = String(this);
-      var previousLastIndex = rx.lastIndex;
-      if (!sameValue(previousLastIndex, 0)) rx.lastIndex = 0;
-      var result = regExpExec(rx, S);
-      if (!sameValue(rx.lastIndex, previousLastIndex)) rx.lastIndex = previousLastIndex;
-      return result === null ? -1 : result.index;
-    }
-  ];
-});
-
-},{"./_an-object":"../../node_modules/core-js/modules/_an-object.js","./_same-value":"../../node_modules/core-js/modules/_same-value.js","./_regexp-exec-abstract":"../../node_modules/core-js/modules/_regexp-exec-abstract.js","./_fix-re-wks":"../../node_modules/core-js/modules/_fix-re-wks.js"}],"../../node_modules/core-js/modules/es6.regexp.to-string.js":[function(require,module,exports) {
-
-'use strict';
-require('./es6.regexp.flags');
-var anObject = require('./_an-object');
-var $flags = require('./_flags');
-var DESCRIPTORS = require('./_descriptors');
-var TO_STRING = 'toString';
-var $toString = /./[TO_STRING];
-
-var define = function (fn) {
-  require('./_redefine')(RegExp.prototype, TO_STRING, fn, true);
-};
-
-// 21.2.5.14 RegExp.prototype.toString()
-if (require('./_fails')(function () { return $toString.call({ source: 'a', flags: 'b' }) != '/a/b'; })) {
-  define(function toString() {
-    var R = anObject(this);
-    return '/'.concat(R.source, '/',
-      'flags' in R ? R.flags : !DESCRIPTORS && R instanceof RegExp ? $flags.call(R) : undefined);
-  });
-// FF44- RegExp#toString has a wrong name
-} else if ($toString.name != TO_STRING) {
-  define(function toString() {
-    return $toString.call(this);
-  });
-}
-
-},{"./es6.regexp.flags":"../../node_modules/core-js/modules/es6.regexp.flags.js","./_an-object":"../../node_modules/core-js/modules/_an-object.js","./_flags":"../../node_modules/core-js/modules/_flags.js","./_descriptors":"../../node_modules/core-js/modules/_descriptors.js","./_redefine":"../../node_modules/core-js/modules/_redefine.js","./_fails":"../../node_modules/core-js/modules/_fails.js"}],"../../node_modules/core-js/modules/_meta.js":[function(require,module,exports) {
-var META = require('./_uid')('meta');
-var isObject = require('./_is-object');
-var has = require('./_has');
-var setDesc = require('./_object-dp').f;
-var id = 0;
-var isExtensible = Object.isExtensible || function () {
-  return true;
-};
-var FREEZE = !require('./_fails')(function () {
-  return isExtensible(Object.preventExtensions({}));
-});
-var setMeta = function (it) {
-  setDesc(it, META, { value: {
-    i: 'O' + ++id, // object ID
-    w: {}          // weak collections IDs
-  } });
-};
-var fastKey = function (it, create) {
-  // return primitive with prefix
-  if (!isObject(it)) return typeof it == 'symbol' ? it : (typeof it == 'string' ? 'S' : 'P') + it;
-  if (!has(it, META)) {
-    // can't set metadata to uncaught frozen object
-    if (!isExtensible(it)) return 'F';
-    // not necessary to add metadata
-    if (!create) return 'E';
-    // add missing metadata
-    setMeta(it);
-  // return object ID
-  } return it[META].i;
-};
-var getWeak = function (it, create) {
-  if (!has(it, META)) {
-    // can't set metadata to uncaught frozen object
-    if (!isExtensible(it)) return true;
-    // not necessary to add metadata
-    if (!create) return false;
-    // add missing metadata
-    setMeta(it);
-  // return hash weak collections IDs
-  } return it[META].w;
-};
-// add metadata on freeze-family methods calling
-var onFreeze = function (it) {
-  if (FREEZE && meta.NEED && isExtensible(it) && !has(it, META)) setMeta(it);
-  return it;
-};
-var meta = module.exports = {
-  KEY: META,
-  NEED: false,
-  fastKey: fastKey,
-  getWeak: getWeak,
-  onFreeze: onFreeze
-};
-
-},{"./_uid":"../../node_modules/core-js/modules/_uid.js","./_is-object":"../../node_modules/core-js/modules/_is-object.js","./_has":"../../node_modules/core-js/modules/_has.js","./_object-dp":"../../node_modules/core-js/modules/_object-dp.js","./_fails":"../../node_modules/core-js/modules/_fails.js"}],"../../node_modules/core-js/modules/_set-to-string-tag.js":[function(require,module,exports) {
-var def = require('./_object-dp').f;
-var has = require('./_has');
-var TAG = require('./_wks')('toStringTag');
-
-module.exports = function (it, tag, stat) {
-  if (it && !has(it = stat ? it : it.prototype, TAG)) def(it, TAG, { configurable: true, value: tag });
-};
-
-},{"./_object-dp":"../../node_modules/core-js/modules/_object-dp.js","./_has":"../../node_modules/core-js/modules/_has.js","./_wks":"../../node_modules/core-js/modules/_wks.js"}],"../../node_modules/core-js/modules/_wks-ext.js":[function(require,module,exports) {
+},{"./_export":"../../node_modules/core-js/modules/_export.js","./_core":"../../node_modules/core-js/modules/_core.js","./_global":"../../node_modules/core-js/modules/_global.js","./_species-constructor":"../../node_modules/core-js/modules/_species-constructor.js","./_promise-resolve":"../../node_modules/core-js/modules/_promise-resolve.js"}],"../../node_modules/core-js/modules/_wks-ext.js":[function(require,module,exports) {
 exports.f = require('./_wks');
 
 },{"./_wks":"../../node_modules/core-js/modules/_wks.js"}],"../../node_modules/core-js/modules/_wks-define.js":[function(require,module,exports) {
@@ -1485,478 +641,64 @@ module.exports = function (name) {
   if (name.charAt(0) != '_' && !(name in $Symbol)) defineProperty($Symbol, name, { value: wksExt.f(name) });
 };
 
-},{"./_global":"../../node_modules/core-js/modules/_global.js","./_core":"../../node_modules/core-js/modules/_core.js","./_library":"../../node_modules/core-js/modules/_library.js","./_wks-ext":"../../node_modules/core-js/modules/_wks-ext.js","./_object-dp":"../../node_modules/core-js/modules/_object-dp.js"}],"../../node_modules/core-js/modules/_object-keys.js":[function(require,module,exports) {
-// 19.1.2.14 / 15.2.3.14 Object.keys(O)
-var $keys = require('./_object-keys-internal');
-var enumBugKeys = require('./_enum-bug-keys');
-
-module.exports = Object.keys || function keys(O) {
-  return $keys(O, enumBugKeys);
-};
-
-},{"./_object-keys-internal":"../../node_modules/core-js/modules/_object-keys-internal.js","./_enum-bug-keys":"../../node_modules/core-js/modules/_enum-bug-keys.js"}],"../../node_modules/core-js/modules/_object-gops.js":[function(require,module,exports) {
-exports.f = Object.getOwnPropertySymbols;
-
-},{}],"../../node_modules/core-js/modules/_enum-keys.js":[function(require,module,exports) {
-// all enumerable object keys, includes symbols
-var getKeys = require('./_object-keys');
-var gOPS = require('./_object-gops');
-var pIE = require('./_object-pie');
-module.exports = function (it) {
-  var result = getKeys(it);
-  var getSymbols = gOPS.f;
-  if (getSymbols) {
-    var symbols = getSymbols(it);
-    var isEnum = pIE.f;
-    var i = 0;
-    var key;
-    while (symbols.length > i) if (isEnum.call(it, key = symbols[i++])) result.push(key);
-  } return result;
-};
-
-},{"./_object-keys":"../../node_modules/core-js/modules/_object-keys.js","./_object-gops":"../../node_modules/core-js/modules/_object-gops.js","./_object-pie":"../../node_modules/core-js/modules/_object-pie.js"}],"../../node_modules/core-js/modules/_is-array.js":[function(require,module,exports) {
-// 7.2.2 IsArray(argument)
-var cof = require('./_cof');
-module.exports = Array.isArray || function isArray(arg) {
-  return cof(arg) == 'Array';
-};
-
-},{"./_cof":"../../node_modules/core-js/modules/_cof.js"}],"../../node_modules/core-js/modules/_object-dps.js":[function(require,module,exports) {
-var dP = require('./_object-dp');
-var anObject = require('./_an-object');
-var getKeys = require('./_object-keys');
-
-module.exports = require('./_descriptors') ? Object.defineProperties : function defineProperties(O, Properties) {
-  anObject(O);
-  var keys = getKeys(Properties);
-  var length = keys.length;
-  var i = 0;
-  var P;
-  while (length > i) dP.f(O, P = keys[i++], Properties[P]);
-  return O;
-};
-
-},{"./_object-dp":"../../node_modules/core-js/modules/_object-dp.js","./_an-object":"../../node_modules/core-js/modules/_an-object.js","./_object-keys":"../../node_modules/core-js/modules/_object-keys.js","./_descriptors":"../../node_modules/core-js/modules/_descriptors.js"}],"../../node_modules/core-js/modules/_html.js":[function(require,module,exports) {
-var document = require('./_global').document;
-module.exports = document && document.documentElement;
-
-},{"./_global":"../../node_modules/core-js/modules/_global.js"}],"../../node_modules/core-js/modules/_object-create.js":[function(require,module,exports) {
-// 19.1.2.2 / 15.2.3.5 Object.create(O [, Properties])
-var anObject = require('./_an-object');
-var dPs = require('./_object-dps');
-var enumBugKeys = require('./_enum-bug-keys');
-var IE_PROTO = require('./_shared-key')('IE_PROTO');
-var Empty = function () { /* empty */ };
-var PROTOTYPE = 'prototype';
-
-// Create object with fake `null` prototype: use iframe Object with cleared prototype
-var createDict = function () {
-  // Thrash, waste and sodomy: IE GC bug
-  var iframe = require('./_dom-create')('iframe');
-  var i = enumBugKeys.length;
-  var lt = '<';
-  var gt = '>';
-  var iframeDocument;
-  iframe.style.display = 'none';
-  require('./_html').appendChild(iframe);
-  iframe.src = 'javascript:'; // eslint-disable-line no-script-url
-  // createDict = iframe.contentWindow.Object;
-  // html.removeChild(iframe);
-  iframeDocument = iframe.contentWindow.document;
-  iframeDocument.open();
-  iframeDocument.write(lt + 'script' + gt + 'document.F=Object' + lt + '/script' + gt);
-  iframeDocument.close();
-  createDict = iframeDocument.F;
-  while (i--) delete createDict[PROTOTYPE][enumBugKeys[i]];
-  return createDict();
-};
-
-module.exports = Object.create || function create(O, Properties) {
-  var result;
-  if (O !== null) {
-    Empty[PROTOTYPE] = anObject(O);
-    result = new Empty();
-    Empty[PROTOTYPE] = null;
-    // add "__proto__" for Object.getPrototypeOf polyfill
-    result[IE_PROTO] = O;
-  } else result = createDict();
-  return Properties === undefined ? result : dPs(result, Properties);
-};
-
-},{"./_an-object":"../../node_modules/core-js/modules/_an-object.js","./_object-dps":"../../node_modules/core-js/modules/_object-dps.js","./_enum-bug-keys":"../../node_modules/core-js/modules/_enum-bug-keys.js","./_shared-key":"../../node_modules/core-js/modules/_shared-key.js","./_dom-create":"../../node_modules/core-js/modules/_dom-create.js","./_html":"../../node_modules/core-js/modules/_html.js"}],"../../node_modules/core-js/modules/_object-gopn-ext.js":[function(require,module,exports) {
-// fallback for IE11 buggy Object.getOwnPropertyNames with iframe and window
-var toIObject = require('./_to-iobject');
-var gOPN = require('./_object-gopn').f;
-var toString = {}.toString;
-
-var windowNames = typeof window == 'object' && window && Object.getOwnPropertyNames
-  ? Object.getOwnPropertyNames(window) : [];
-
-var getWindowNames = function (it) {
-  try {
-    return gOPN(it);
-  } catch (e) {
-    return windowNames.slice();
-  }
-};
-
-module.exports.f = function getOwnPropertyNames(it) {
-  return windowNames && toString.call(it) == '[object Window]' ? getWindowNames(it) : gOPN(toIObject(it));
-};
-
-},{"./_to-iobject":"../../node_modules/core-js/modules/_to-iobject.js","./_object-gopn":"../../node_modules/core-js/modules/_object-gopn.js"}],"../../node_modules/core-js/modules/es6.symbol.js":[function(require,module,exports) {
-
-'use strict';
-// ECMAScript 6 symbols shim
-var global = require('./_global');
-var has = require('./_has');
-var DESCRIPTORS = require('./_descriptors');
-var $export = require('./_export');
-var redefine = require('./_redefine');
-var META = require('./_meta').KEY;
-var $fails = require('./_fails');
-var shared = require('./_shared');
-var setToStringTag = require('./_set-to-string-tag');
-var uid = require('./_uid');
-var wks = require('./_wks');
-var wksExt = require('./_wks-ext');
-var wksDefine = require('./_wks-define');
-var enumKeys = require('./_enum-keys');
-var isArray = require('./_is-array');
-var anObject = require('./_an-object');
-var isObject = require('./_is-object');
-var toObject = require('./_to-object');
-var toIObject = require('./_to-iobject');
-var toPrimitive = require('./_to-primitive');
-var createDesc = require('./_property-desc');
-var _create = require('./_object-create');
-var gOPNExt = require('./_object-gopn-ext');
-var $GOPD = require('./_object-gopd');
-var $GOPS = require('./_object-gops');
-var $DP = require('./_object-dp');
-var $keys = require('./_object-keys');
-var gOPD = $GOPD.f;
-var dP = $DP.f;
-var gOPN = gOPNExt.f;
-var $Symbol = global.Symbol;
-var $JSON = global.JSON;
-var _stringify = $JSON && $JSON.stringify;
-var PROTOTYPE = 'prototype';
-var HIDDEN = wks('_hidden');
-var TO_PRIMITIVE = wks('toPrimitive');
-var isEnum = {}.propertyIsEnumerable;
-var SymbolRegistry = shared('symbol-registry');
-var AllSymbols = shared('symbols');
-var OPSymbols = shared('op-symbols');
-var ObjectProto = Object[PROTOTYPE];
-var USE_NATIVE = typeof $Symbol == 'function' && !!$GOPS.f;
-var QObject = global.QObject;
-// Don't use setters in Qt Script, https://github.com/zloirock/core-js/issues/173
-var setter = !QObject || !QObject[PROTOTYPE] || !QObject[PROTOTYPE].findChild;
-
-// fallback for old Android, https://code.google.com/p/v8/issues/detail?id=687
-var setSymbolDesc = DESCRIPTORS && $fails(function () {
-  return _create(dP({}, 'a', {
-    get: function () { return dP(this, 'a', { value: 7 }).a; }
-  })).a != 7;
-}) ? function (it, key, D) {
-  var protoDesc = gOPD(ObjectProto, key);
-  if (protoDesc) delete ObjectProto[key];
-  dP(it, key, D);
-  if (protoDesc && it !== ObjectProto) dP(ObjectProto, key, protoDesc);
-} : dP;
-
-var wrap = function (tag) {
-  var sym = AllSymbols[tag] = _create($Symbol[PROTOTYPE]);
-  sym._k = tag;
-  return sym;
-};
-
-var isSymbol = USE_NATIVE && typeof $Symbol.iterator == 'symbol' ? function (it) {
-  return typeof it == 'symbol';
-} : function (it) {
-  return it instanceof $Symbol;
-};
-
-var $defineProperty = function defineProperty(it, key, D) {
-  if (it === ObjectProto) $defineProperty(OPSymbols, key, D);
-  anObject(it);
-  key = toPrimitive(key, true);
-  anObject(D);
-  if (has(AllSymbols, key)) {
-    if (!D.enumerable) {
-      if (!has(it, HIDDEN)) dP(it, HIDDEN, createDesc(1, {}));
-      it[HIDDEN][key] = true;
-    } else {
-      if (has(it, HIDDEN) && it[HIDDEN][key]) it[HIDDEN][key] = false;
-      D = _create(D, { enumerable: createDesc(0, false) });
-    } return setSymbolDesc(it, key, D);
-  } return dP(it, key, D);
-};
-var $defineProperties = function defineProperties(it, P) {
-  anObject(it);
-  var keys = enumKeys(P = toIObject(P));
-  var i = 0;
-  var l = keys.length;
-  var key;
-  while (l > i) $defineProperty(it, key = keys[i++], P[key]);
-  return it;
-};
-var $create = function create(it, P) {
-  return P === undefined ? _create(it) : $defineProperties(_create(it), P);
-};
-var $propertyIsEnumerable = function propertyIsEnumerable(key) {
-  var E = isEnum.call(this, key = toPrimitive(key, true));
-  if (this === ObjectProto && has(AllSymbols, key) && !has(OPSymbols, key)) return false;
-  return E || !has(this, key) || !has(AllSymbols, key) || has(this, HIDDEN) && this[HIDDEN][key] ? E : true;
-};
-var $getOwnPropertyDescriptor = function getOwnPropertyDescriptor(it, key) {
-  it = toIObject(it);
-  key = toPrimitive(key, true);
-  if (it === ObjectProto && has(AllSymbols, key) && !has(OPSymbols, key)) return;
-  var D = gOPD(it, key);
-  if (D && has(AllSymbols, key) && !(has(it, HIDDEN) && it[HIDDEN][key])) D.enumerable = true;
-  return D;
-};
-var $getOwnPropertyNames = function getOwnPropertyNames(it) {
-  var names = gOPN(toIObject(it));
-  var result = [];
-  var i = 0;
-  var key;
-  while (names.length > i) {
-    if (!has(AllSymbols, key = names[i++]) && key != HIDDEN && key != META) result.push(key);
-  } return result;
-};
-var $getOwnPropertySymbols = function getOwnPropertySymbols(it) {
-  var IS_OP = it === ObjectProto;
-  var names = gOPN(IS_OP ? OPSymbols : toIObject(it));
-  var result = [];
-  var i = 0;
-  var key;
-  while (names.length > i) {
-    if (has(AllSymbols, key = names[i++]) && (IS_OP ? has(ObjectProto, key) : true)) result.push(AllSymbols[key]);
-  } return result;
-};
-
-// 19.4.1.1 Symbol([description])
-if (!USE_NATIVE) {
-  $Symbol = function Symbol() {
-    if (this instanceof $Symbol) throw TypeError('Symbol is not a constructor!');
-    var tag = uid(arguments.length > 0 ? arguments[0] : undefined);
-    var $set = function (value) {
-      if (this === ObjectProto) $set.call(OPSymbols, value);
-      if (has(this, HIDDEN) && has(this[HIDDEN], tag)) this[HIDDEN][tag] = false;
-      setSymbolDesc(this, tag, createDesc(1, value));
-    };
-    if (DESCRIPTORS && setter) setSymbolDesc(ObjectProto, tag, { configurable: true, set: $set });
-    return wrap(tag);
-  };
-  redefine($Symbol[PROTOTYPE], 'toString', function toString() {
-    return this._k;
-  });
-
-  $GOPD.f = $getOwnPropertyDescriptor;
-  $DP.f = $defineProperty;
-  require('./_object-gopn').f = gOPNExt.f = $getOwnPropertyNames;
-  require('./_object-pie').f = $propertyIsEnumerable;
-  $GOPS.f = $getOwnPropertySymbols;
-
-  if (DESCRIPTORS && !require('./_library')) {
-    redefine(ObjectProto, 'propertyIsEnumerable', $propertyIsEnumerable, true);
-  }
-
-  wksExt.f = function (name) {
-    return wrap(wks(name));
-  };
-}
-
-$export($export.G + $export.W + $export.F * !USE_NATIVE, { Symbol: $Symbol });
-
-for (var es6Symbols = (
-  // 19.4.2.2, 19.4.2.3, 19.4.2.4, 19.4.2.6, 19.4.2.8, 19.4.2.9, 19.4.2.10, 19.4.2.11, 19.4.2.12, 19.4.2.13, 19.4.2.14
-  'hasInstance,isConcatSpreadable,iterator,match,replace,search,species,split,toPrimitive,toStringTag,unscopables'
-).split(','), j = 0; es6Symbols.length > j;)wks(es6Symbols[j++]);
-
-for (var wellKnownSymbols = $keys(wks.store), k = 0; wellKnownSymbols.length > k;) wksDefine(wellKnownSymbols[k++]);
-
-$export($export.S + $export.F * !USE_NATIVE, 'Symbol', {
-  // 19.4.2.1 Symbol.for(key)
-  'for': function (key) {
-    return has(SymbolRegistry, key += '')
-      ? SymbolRegistry[key]
-      : SymbolRegistry[key] = $Symbol(key);
-  },
-  // 19.4.2.5 Symbol.keyFor(sym)
-  keyFor: function keyFor(sym) {
-    if (!isSymbol(sym)) throw TypeError(sym + ' is not a symbol!');
-    for (var key in SymbolRegistry) if (SymbolRegistry[key] === sym) return key;
-  },
-  useSetter: function () { setter = true; },
-  useSimple: function () { setter = false; }
-});
-
-$export($export.S + $export.F * !USE_NATIVE, 'Object', {
-  // 19.1.2.2 Object.create(O [, Properties])
-  create: $create,
-  // 19.1.2.4 Object.defineProperty(O, P, Attributes)
-  defineProperty: $defineProperty,
-  // 19.1.2.3 Object.defineProperties(O, Properties)
-  defineProperties: $defineProperties,
-  // 19.1.2.6 Object.getOwnPropertyDescriptor(O, P)
-  getOwnPropertyDescriptor: $getOwnPropertyDescriptor,
-  // 19.1.2.7 Object.getOwnPropertyNames(O)
-  getOwnPropertyNames: $getOwnPropertyNames,
-  // 19.1.2.8 Object.getOwnPropertySymbols(O)
-  getOwnPropertySymbols: $getOwnPropertySymbols
-});
-
-// Chrome 38 and 39 `Object.getOwnPropertySymbols` fails on primitives
-// https://bugs.chromium.org/p/v8/issues/detail?id=3443
-var FAILS_ON_PRIMITIVES = $fails(function () { $GOPS.f(1); });
-
-$export($export.S + $export.F * FAILS_ON_PRIMITIVES, 'Object', {
-  getOwnPropertySymbols: function getOwnPropertySymbols(it) {
-    return $GOPS.f(toObject(it));
-  }
-});
-
-// 24.3.2 JSON.stringify(value [, replacer [, space]])
-$JSON && $export($export.S + $export.F * (!USE_NATIVE || $fails(function () {
-  var S = $Symbol();
-  // MS Edge converts symbol values to JSON as {}
-  // WebKit converts symbol values to JSON as null
-  // V8 throws on boxed symbols
-  return _stringify([S]) != '[null]' || _stringify({ a: S }) != '{}' || _stringify(Object(S)) != '{}';
-})), 'JSON', {
-  stringify: function stringify(it) {
-    var args = [it];
-    var i = 1;
-    var replacer, $replacer;
-    while (arguments.length > i) args.push(arguments[i++]);
-    $replacer = replacer = args[1];
-    if (!isObject(replacer) && it === undefined || isSymbol(it)) return; // IE8 returns string on undefined
-    if (!isArray(replacer)) replacer = function (key, value) {
-      if (typeof $replacer == 'function') value = $replacer.call(this, key, value);
-      if (!isSymbol(value)) return value;
-    };
-    args[1] = replacer;
-    return _stringify.apply($JSON, args);
-  }
-});
-
-// 19.4.3.4 Symbol.prototype[@@toPrimitive](hint)
-$Symbol[PROTOTYPE][TO_PRIMITIVE] || require('./_hide')($Symbol[PROTOTYPE], TO_PRIMITIVE, $Symbol[PROTOTYPE].valueOf);
-// 19.4.3.5 Symbol.prototype[@@toStringTag]
-setToStringTag($Symbol, 'Symbol');
-// 20.2.1.9 Math[@@toStringTag]
-setToStringTag(Math, 'Math', true);
-// 24.3.3 JSON[@@toStringTag]
-setToStringTag(global.JSON, 'JSON', true);
-
-},{"./_global":"../../node_modules/core-js/modules/_global.js","./_has":"../../node_modules/core-js/modules/_has.js","./_descriptors":"../../node_modules/core-js/modules/_descriptors.js","./_export":"../../node_modules/core-js/modules/_export.js","./_redefine":"../../node_modules/core-js/modules/_redefine.js","./_meta":"../../node_modules/core-js/modules/_meta.js","./_fails":"../../node_modules/core-js/modules/_fails.js","./_shared":"../../node_modules/core-js/modules/_shared.js","./_set-to-string-tag":"../../node_modules/core-js/modules/_set-to-string-tag.js","./_uid":"../../node_modules/core-js/modules/_uid.js","./_wks":"../../node_modules/core-js/modules/_wks.js","./_wks-ext":"../../node_modules/core-js/modules/_wks-ext.js","./_wks-define":"../../node_modules/core-js/modules/_wks-define.js","./_enum-keys":"../../node_modules/core-js/modules/_enum-keys.js","./_is-array":"../../node_modules/core-js/modules/_is-array.js","./_an-object":"../../node_modules/core-js/modules/_an-object.js","./_is-object":"../../node_modules/core-js/modules/_is-object.js","./_to-object":"../../node_modules/core-js/modules/_to-object.js","./_to-iobject":"../../node_modules/core-js/modules/_to-iobject.js","./_to-primitive":"../../node_modules/core-js/modules/_to-primitive.js","./_property-desc":"../../node_modules/core-js/modules/_property-desc.js","./_object-create":"../../node_modules/core-js/modules/_object-create.js","./_object-gopn-ext":"../../node_modules/core-js/modules/_object-gopn-ext.js","./_object-gopd":"../../node_modules/core-js/modules/_object-gopd.js","./_object-gops":"../../node_modules/core-js/modules/_object-gops.js","./_object-dp":"../../node_modules/core-js/modules/_object-dp.js","./_object-keys":"../../node_modules/core-js/modules/_object-keys.js","./_object-gopn":"../../node_modules/core-js/modules/_object-gopn.js","./_object-pie":"../../node_modules/core-js/modules/_object-pie.js","./_library":"../../node_modules/core-js/modules/_library.js","./_hide":"../../node_modules/core-js/modules/_hide.js"}],"../../node_modules/core-js/modules/es7.symbol.async-iterator.js":[function(require,module,exports) {
+},{"./_global":"../../node_modules/core-js/modules/_global.js","./_core":"../../node_modules/core-js/modules/_core.js","./_library":"../../node_modules/core-js/modules/_library.js","./_wks-ext":"../../node_modules/core-js/modules/_wks-ext.js","./_object-dp":"../../node_modules/core-js/modules/_object-dp.js"}],"../../node_modules/core-js/modules/es7.symbol.async-iterator.js":[function(require,module,exports) {
 require('./_wks-define')('asyncIterator');
 
-},{"./_wks-define":"../../node_modules/core-js/modules/_wks-define.js"}],"../../node_modules/core-js/modules/_flatten-into-array.js":[function(require,module,exports) {
-'use strict';
-// https://tc39.github.io/proposal-flatMap/#sec-FlattenIntoArray
-var isArray = require('./_is-array');
-var isObject = require('./_is-object');
-var toLength = require('./_to-length');
-var ctx = require('./_ctx');
-var IS_CONCAT_SPREADABLE = require('./_wks')('isConcatSpreadable');
+},{"./_wks-define":"../../node_modules/core-js/modules/_wks-define.js"}],"../../node_modules/core-js/modules/_string-ws.js":[function(require,module,exports) {
+module.exports = '\x09\x0A\x0B\x0C\x0D\x20\xA0\u1680\u180E\u2000\u2001\u2002\u2003' +
+  '\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000\u2028\u2029\uFEFF';
 
-function flattenIntoArray(target, original, source, sourceLen, start, depth, mapper, thisArg) {
-  var targetIndex = start;
-  var sourceIndex = 0;
-  var mapFn = mapper ? ctx(mapper, thisArg, 3) : false;
-  var element, spreadable;
-
-  while (sourceIndex < sourceLen) {
-    if (sourceIndex in source) {
-      element = mapFn ? mapFn(source[sourceIndex], sourceIndex, original) : source[sourceIndex];
-
-      spreadable = false;
-      if (isObject(element)) {
-        spreadable = element[IS_CONCAT_SPREADABLE];
-        spreadable = spreadable !== undefined ? !!spreadable : isArray(element);
-      }
-
-      if (spreadable && depth > 0) {
-        targetIndex = flattenIntoArray(target, original, element, toLength(element.length), targetIndex, depth - 1) - 1;
-      } else {
-        if (targetIndex >= 0x1fffffffffffff) throw TypeError();
-        target[targetIndex] = element;
-      }
-
-      targetIndex++;
-    }
-    sourceIndex++;
-  }
-  return targetIndex;
-}
-
-module.exports = flattenIntoArray;
-
-},{"./_is-array":"../../node_modules/core-js/modules/_is-array.js","./_is-object":"../../node_modules/core-js/modules/_is-object.js","./_to-length":"../../node_modules/core-js/modules/_to-length.js","./_ctx":"../../node_modules/core-js/modules/_ctx.js","./_wks":"../../node_modules/core-js/modules/_wks.js"}],"../../node_modules/core-js/modules/_array-species-constructor.js":[function(require,module,exports) {
-var isObject = require('./_is-object');
-var isArray = require('./_is-array');
-var SPECIES = require('./_wks')('species');
-
-module.exports = function (original) {
-  var C;
-  if (isArray(original)) {
-    C = original.constructor;
-    // cross-realm fallback
-    if (typeof C == 'function' && (C === Array || isArray(C.prototype))) C = undefined;
-    if (isObject(C)) {
-      C = C[SPECIES];
-      if (C === null) C = undefined;
-    }
-  } return C === undefined ? Array : C;
-};
-
-},{"./_is-object":"../../node_modules/core-js/modules/_is-object.js","./_is-array":"../../node_modules/core-js/modules/_is-array.js","./_wks":"../../node_modules/core-js/modules/_wks.js"}],"../../node_modules/core-js/modules/_array-species-create.js":[function(require,module,exports) {
-// 9.4.2.3 ArraySpeciesCreate(originalArray, length)
-var speciesConstructor = require('./_array-species-constructor');
-
-module.exports = function (original, length) {
-  return new (speciesConstructor(original))(length);
-};
-
-},{"./_array-species-constructor":"../../node_modules/core-js/modules/_array-species-constructor.js"}],"../../node_modules/core-js/modules/_add-to-unscopables.js":[function(require,module,exports) {
-// 22.1.3.31 Array.prototype[@@unscopables]
-var UNSCOPABLES = require('./_wks')('unscopables');
-var ArrayProto = Array.prototype;
-if (ArrayProto[UNSCOPABLES] == undefined) require('./_hide')(ArrayProto, UNSCOPABLES, {});
-module.exports = function (key) {
-  ArrayProto[UNSCOPABLES][key] = true;
-};
-
-},{"./_wks":"../../node_modules/core-js/modules/_wks.js","./_hide":"../../node_modules/core-js/modules/_hide.js"}],"../../node_modules/core-js/modules/es7.array.flat-map.js":[function(require,module,exports) {
-'use strict';
-// https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap
+},{}],"../../node_modules/core-js/modules/_string-trim.js":[function(require,module,exports) {
 var $export = require('./_export');
-var flattenIntoArray = require('./_flatten-into-array');
-var toObject = require('./_to-object');
-var toLength = require('./_to-length');
-var aFunction = require('./_a-function');
-var arraySpeciesCreate = require('./_array-species-create');
+var defined = require('./_defined');
+var fails = require('./_fails');
+var spaces = require('./_string-ws');
+var space = '[' + spaces + ']';
+var non = '\u200b\u0085';
+var ltrim = RegExp('^' + space + space + '*');
+var rtrim = RegExp(space + space + '*$');
 
-$export($export.P, 'Array', {
-  flatMap: function flatMap(callbackfn /* , thisArg */) {
-    var O = toObject(this);
-    var sourceLen, A;
-    aFunction(callbackfn);
-    sourceLen = toLength(O.length);
-    A = arraySpeciesCreate(O, 0);
-    flattenIntoArray(A, O, O, sourceLen, 0, 1, callbackfn, arguments[1]);
-    return A;
-  }
-});
+var exporter = function (KEY, exec, ALIAS) {
+  var exp = {};
+  var FORCE = fails(function () {
+    return !!spaces[KEY]() || non[KEY]() != non;
+  });
+  var fn = exp[KEY] = FORCE ? exec(trim) : spaces[KEY];
+  if (ALIAS) exp[ALIAS] = fn;
+  $export($export.P + $export.F * FORCE, 'String', exp);
+};
 
-require('./_add-to-unscopables')('flatMap');
+// 1 -> String#trimLeft
+// 2 -> String#trimRight
+// 3 -> String#trim
+var trim = exporter.trim = function (string, TYPE) {
+  string = String(defined(string));
+  if (TYPE & 1) string = string.replace(ltrim, '');
+  if (TYPE & 2) string = string.replace(rtrim, '');
+  return string;
+};
 
-},{"./_export":"../../node_modules/core-js/modules/_export.js","./_flatten-into-array":"../../node_modules/core-js/modules/_flatten-into-array.js","./_to-object":"../../node_modules/core-js/modules/_to-object.js","./_to-length":"../../node_modules/core-js/modules/_to-length.js","./_a-function":"../../node_modules/core-js/modules/_a-function.js","./_array-species-create":"../../node_modules/core-js/modules/_array-species-create.js","./_add-to-unscopables":"../../node_modules/core-js/modules/_add-to-unscopables.js"}],"../../node_modules/core-js/modules/_user-agent.js":[function(require,module,exports) {
+module.exports = exporter;
+
+},{"./_export":"../../node_modules/core-js/modules/_export.js","./_defined":"../../node_modules/core-js/modules/_defined.js","./_fails":"../../node_modules/core-js/modules/_fails.js","./_string-ws":"../../node_modules/core-js/modules/_string-ws.js"}],"../../node_modules/core-js/modules/es7.string.trim-left.js":[function(require,module,exports) {
+'use strict';
+// https://github.com/sebmarkbage/ecmascript-string-left-right-trim
+require('./_string-trim')('trimLeft', function ($trim) {
+  return function trimLeft() {
+    return $trim(this, 1);
+  };
+}, 'trimStart');
+
+},{"./_string-trim":"../../node_modules/core-js/modules/_string-trim.js"}],"../../node_modules/core-js/modules/es7.string.trim-right.js":[function(require,module,exports) {
+'use strict';
+// https://github.com/sebmarkbage/ecmascript-string-left-right-trim
+require('./_string-trim')('trimRight', function ($trim) {
+  return function trimRight() {
+    return $trim(this, 2);
+  };
+}, 'trimEnd');
+
+},{"./_string-trim":"../../node_modules/core-js/modules/_string-trim.js"}],"../../node_modules/core-js/modules/_user-agent.js":[function(require,module,exports) {
 
 var global = require('./_global');
 var navigator = global.navigator;
@@ -2004,7 +746,11 @@ module.exports = function (fn, args, that) {
   } return fn.apply(that, args);
 };
 
-},{}],"../../node_modules/core-js/modules/_task.js":[function(require,module,exports) {
+},{}],"../../node_modules/core-js/modules/_html.js":[function(require,module,exports) {
+var document = require('./_global').document;
+module.exports = document && document.documentElement;
+
+},{"./_global":"../../node_modules/core-js/modules/_global.js"}],"../../node_modules/core-js/modules/_task.js":[function(require,module,exports) {
 
 
 var ctx = require('./_ctx');
@@ -2108,7 +854,165 @@ module.exports = function (done, value) {
 },{}],"../../node_modules/core-js/modules/_iterators.js":[function(require,module,exports) {
 module.exports = {};
 
-},{}],"../../node_modules/core-js/modules/_iter-create.js":[function(require,module,exports) {
+},{}],"../../node_modules/core-js/modules/_iobject.js":[function(require,module,exports) {
+// fallback for non-array-like ES3 and non-enumerable old V8 strings
+var cof = require('./_cof');
+// eslint-disable-next-line no-prototype-builtins
+module.exports = Object('z').propertyIsEnumerable(0) ? Object : function (it) {
+  return cof(it) == 'String' ? it.split('') : Object(it);
+};
+
+},{"./_cof":"../../node_modules/core-js/modules/_cof.js"}],"../../node_modules/core-js/modules/_to-iobject.js":[function(require,module,exports) {
+// to indexed object, toObject with fallback for non-array-like ES3 strings
+var IObject = require('./_iobject');
+var defined = require('./_defined');
+module.exports = function (it) {
+  return IObject(defined(it));
+};
+
+},{"./_iobject":"../../node_modules/core-js/modules/_iobject.js","./_defined":"../../node_modules/core-js/modules/_defined.js"}],"../../node_modules/core-js/modules/_to-absolute-index.js":[function(require,module,exports) {
+var toInteger = require('./_to-integer');
+var max = Math.max;
+var min = Math.min;
+module.exports = function (index, length) {
+  index = toInteger(index);
+  return index < 0 ? max(index + length, 0) : min(index, length);
+};
+
+},{"./_to-integer":"../../node_modules/core-js/modules/_to-integer.js"}],"../../node_modules/core-js/modules/_array-includes.js":[function(require,module,exports) {
+// false -> Array#indexOf
+// true  -> Array#includes
+var toIObject = require('./_to-iobject');
+var toLength = require('./_to-length');
+var toAbsoluteIndex = require('./_to-absolute-index');
+module.exports = function (IS_INCLUDES) {
+  return function ($this, el, fromIndex) {
+    var O = toIObject($this);
+    var length = toLength(O.length);
+    var index = toAbsoluteIndex(fromIndex, length);
+    var value;
+    // Array#includes uses SameValueZero equality algorithm
+    // eslint-disable-next-line no-self-compare
+    if (IS_INCLUDES && el != el) while (length > index) {
+      value = O[index++];
+      // eslint-disable-next-line no-self-compare
+      if (value != value) return true;
+    // Array#indexOf ignores holes, Array#includes - not
+    } else for (;length > index; index++) if (IS_INCLUDES || index in O) {
+      if (O[index] === el) return IS_INCLUDES || index || 0;
+    } return !IS_INCLUDES && -1;
+  };
+};
+
+},{"./_to-iobject":"../../node_modules/core-js/modules/_to-iobject.js","./_to-length":"../../node_modules/core-js/modules/_to-length.js","./_to-absolute-index":"../../node_modules/core-js/modules/_to-absolute-index.js"}],"../../node_modules/core-js/modules/_shared-key.js":[function(require,module,exports) {
+var shared = require('./_shared')('keys');
+var uid = require('./_uid');
+module.exports = function (key) {
+  return shared[key] || (shared[key] = uid(key));
+};
+
+},{"./_shared":"../../node_modules/core-js/modules/_shared.js","./_uid":"../../node_modules/core-js/modules/_uid.js"}],"../../node_modules/core-js/modules/_object-keys-internal.js":[function(require,module,exports) {
+var has = require('./_has');
+var toIObject = require('./_to-iobject');
+var arrayIndexOf = require('./_array-includes')(false);
+var IE_PROTO = require('./_shared-key')('IE_PROTO');
+
+module.exports = function (object, names) {
+  var O = toIObject(object);
+  var i = 0;
+  var result = [];
+  var key;
+  for (key in O) if (key != IE_PROTO) has(O, key) && result.push(key);
+  // Don't enum bug & hidden keys
+  while (names.length > i) if (has(O, key = names[i++])) {
+    ~arrayIndexOf(result, key) || result.push(key);
+  }
+  return result;
+};
+
+},{"./_has":"../../node_modules/core-js/modules/_has.js","./_to-iobject":"../../node_modules/core-js/modules/_to-iobject.js","./_array-includes":"../../node_modules/core-js/modules/_array-includes.js","./_shared-key":"../../node_modules/core-js/modules/_shared-key.js"}],"../../node_modules/core-js/modules/_enum-bug-keys.js":[function(require,module,exports) {
+// IE 8- don't enum bug keys
+module.exports = (
+  'constructor,hasOwnProperty,isPrototypeOf,propertyIsEnumerable,toLocaleString,toString,valueOf'
+).split(',');
+
+},{}],"../../node_modules/core-js/modules/_object-keys.js":[function(require,module,exports) {
+// 19.1.2.14 / 15.2.3.14 Object.keys(O)
+var $keys = require('./_object-keys-internal');
+var enumBugKeys = require('./_enum-bug-keys');
+
+module.exports = Object.keys || function keys(O) {
+  return $keys(O, enumBugKeys);
+};
+
+},{"./_object-keys-internal":"../../node_modules/core-js/modules/_object-keys-internal.js","./_enum-bug-keys":"../../node_modules/core-js/modules/_enum-bug-keys.js"}],"../../node_modules/core-js/modules/_object-dps.js":[function(require,module,exports) {
+var dP = require('./_object-dp');
+var anObject = require('./_an-object');
+var getKeys = require('./_object-keys');
+
+module.exports = require('./_descriptors') ? Object.defineProperties : function defineProperties(O, Properties) {
+  anObject(O);
+  var keys = getKeys(Properties);
+  var length = keys.length;
+  var i = 0;
+  var P;
+  while (length > i) dP.f(O, P = keys[i++], Properties[P]);
+  return O;
+};
+
+},{"./_object-dp":"../../node_modules/core-js/modules/_object-dp.js","./_an-object":"../../node_modules/core-js/modules/_an-object.js","./_object-keys":"../../node_modules/core-js/modules/_object-keys.js","./_descriptors":"../../node_modules/core-js/modules/_descriptors.js"}],"../../node_modules/core-js/modules/_object-create.js":[function(require,module,exports) {
+// 19.1.2.2 / 15.2.3.5 Object.create(O [, Properties])
+var anObject = require('./_an-object');
+var dPs = require('./_object-dps');
+var enumBugKeys = require('./_enum-bug-keys');
+var IE_PROTO = require('./_shared-key')('IE_PROTO');
+var Empty = function () { /* empty */ };
+var PROTOTYPE = 'prototype';
+
+// Create object with fake `null` prototype: use iframe Object with cleared prototype
+var createDict = function () {
+  // Thrash, waste and sodomy: IE GC bug
+  var iframe = require('./_dom-create')('iframe');
+  var i = enumBugKeys.length;
+  var lt = '<';
+  var gt = '>';
+  var iframeDocument;
+  iframe.style.display = 'none';
+  require('./_html').appendChild(iframe);
+  iframe.src = 'javascript:'; // eslint-disable-line no-script-url
+  // createDict = iframe.contentWindow.Object;
+  // html.removeChild(iframe);
+  iframeDocument = iframe.contentWindow.document;
+  iframeDocument.open();
+  iframeDocument.write(lt + 'script' + gt + 'document.F=Object' + lt + '/script' + gt);
+  iframeDocument.close();
+  createDict = iframeDocument.F;
+  while (i--) delete createDict[PROTOTYPE][enumBugKeys[i]];
+  return createDict();
+};
+
+module.exports = Object.create || function create(O, Properties) {
+  var result;
+  if (O !== null) {
+    Empty[PROTOTYPE] = anObject(O);
+    result = new Empty();
+    Empty[PROTOTYPE] = null;
+    // add "__proto__" for Object.getPrototypeOf polyfill
+    result[IE_PROTO] = O;
+  } else result = createDict();
+  return Properties === undefined ? result : dPs(result, Properties);
+};
+
+},{"./_an-object":"../../node_modules/core-js/modules/_an-object.js","./_object-dps":"../../node_modules/core-js/modules/_object-dps.js","./_enum-bug-keys":"../../node_modules/core-js/modules/_enum-bug-keys.js","./_shared-key":"../../node_modules/core-js/modules/_shared-key.js","./_dom-create":"../../node_modules/core-js/modules/_dom-create.js","./_html":"../../node_modules/core-js/modules/_html.js"}],"../../node_modules/core-js/modules/_set-to-string-tag.js":[function(require,module,exports) {
+var def = require('./_object-dp').f;
+var has = require('./_has');
+var TAG = require('./_wks')('toStringTag');
+
+module.exports = function (it, tag, stat) {
+  if (it && !has(it = stat ? it : it.prototype, TAG)) def(it, TAG, { configurable: true, value: tag });
+};
+
+},{"./_object-dp":"../../node_modules/core-js/modules/_object-dp.js","./_has":"../../node_modules/core-js/modules/_has.js","./_wks":"../../node_modules/core-js/modules/_wks.js"}],"../../node_modules/core-js/modules/_iter-create.js":[function(require,module,exports) {
 'use strict';
 var create = require('./_object-create');
 var descriptor = require('./_property-desc');
@@ -2123,7 +1027,22 @@ module.exports = function (Constructor, NAME, next) {
   setToStringTag(Constructor, NAME + ' Iterator');
 };
 
-},{"./_object-create":"../../node_modules/core-js/modules/_object-create.js","./_property-desc":"../../node_modules/core-js/modules/_property-desc.js","./_set-to-string-tag":"../../node_modules/core-js/modules/_set-to-string-tag.js","./_hide":"../../node_modules/core-js/modules/_hide.js","./_wks":"../../node_modules/core-js/modules/_wks.js"}],"../../node_modules/core-js/modules/_iter-define.js":[function(require,module,exports) {
+},{"./_object-create":"../../node_modules/core-js/modules/_object-create.js","./_property-desc":"../../node_modules/core-js/modules/_property-desc.js","./_set-to-string-tag":"../../node_modules/core-js/modules/_set-to-string-tag.js","./_hide":"../../node_modules/core-js/modules/_hide.js","./_wks":"../../node_modules/core-js/modules/_wks.js"}],"../../node_modules/core-js/modules/_object-gpo.js":[function(require,module,exports) {
+// 19.1.2.9 / 15.2.3.2 Object.getPrototypeOf(O)
+var has = require('./_has');
+var toObject = require('./_to-object');
+var IE_PROTO = require('./_shared-key')('IE_PROTO');
+var ObjectProto = Object.prototype;
+
+module.exports = Object.getPrototypeOf || function (O) {
+  O = toObject(O);
+  if (has(O, IE_PROTO)) return O[IE_PROTO];
+  if (typeof O.constructor == 'function' && O instanceof O.constructor) {
+    return O.constructor.prototype;
+  } return O instanceof Object ? ObjectProto : null;
+};
+
+},{"./_has":"../../node_modules/core-js/modules/_has.js","./_to-object":"../../node_modules/core-js/modules/_to-object.js","./_shared-key":"../../node_modules/core-js/modules/_shared-key.js"}],"../../node_modules/core-js/modules/_iter-define.js":[function(require,module,exports) {
 'use strict';
 var LIBRARY = require('./_library');
 var $export = require('./_export');
@@ -2291,40 +1210,46 @@ for (var collections = getKeys(DOMIterables), i = 0; i < collections.length; i++
   }
 }
 
-},{"./es6.array.iterator":"../../node_modules/core-js/modules/es6.array.iterator.js","./_object-keys":"../../node_modules/core-js/modules/_object-keys.js","./_redefine":"../../node_modules/core-js/modules/_redefine.js","./_global":"../../node_modules/core-js/modules/_global.js","./_hide":"../../node_modules/core-js/modules/_hide.js","./_iterators":"../../node_modules/core-js/modules/_iterators.js","./_wks":"../../node_modules/core-js/modules/_wks.js"}],"mapbox.js":[function(require,module,exports) {
+},{"./es6.array.iterator":"../../node_modules/core-js/modules/es6.array.iterator.js","./_object-keys":"../../node_modules/core-js/modules/_object-keys.js","./_redefine":"../../node_modules/core-js/modules/_redefine.js","./_global":"../../node_modules/core-js/modules/_global.js","./_hide":"../../node_modules/core-js/modules/_hide.js","./_iterators":"../../node_modules/core-js/modules/_iterators.js","./_wks":"../../node_modules/core-js/modules/_wks.js"}],"maptiler.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.displayMap = void 0;
-
 /* eslint-disable */
+
 const displayMap = locations => {
-  mapboxgl.accessToken = 'YourToken';
-  var map = new mapboxgl.Map({
+  const map = new maplibregl.Map({
     container: 'map',
-    style: 'mapbox://styles/SignUpUser/Token',
-    scrollZoom: false // center: [-118.113491, 34.111745], // LA
-    // zoom: 10,
-    // interactive: false
-
+    style: 'https://vector.maptiler.ir/styles/osm/style.json',
+    scrollZoom: false,
+    zoom: 25,
+    interactive: false
   });
-  const bounds = new mapboxgl.LngLatBounds();
-  locations.forEach(loc => {
-    // Create marker
-    const el = document.createElement('div');
-    el.className = 'marker'; // Add marker
+  const bounds = new maplibregl.LngLatBounds();
 
-    new mapboxgl.Marker({
+  // Force English Labels ---
+  map.on('load', () => {
+    const layers = map.getStyle().layers;
+    layers.forEach(layer => {
+      // Find layers that render text symbols (like city and street names)
+      if (layer.type === 'symbol' && layer.layout && layer.layout['text-field']) {
+        // Override the text to use English ('name:en'), falling back to the default if English isn't available
+        map.setLayoutProperty(layer.id, 'text-field', ['coalesce', ['get', 'name:en'], ['get', 'name']]);
+      }
+    });
+  });
+  locations.forEach(loc => {
+    const el = document.createElement('div');
+    el.className = 'marker';
+    new maplibregl.Marker({
       element: el,
       anchor: 'bottom'
-    }).setLngLat(loc.coordinates).addTo(map); // Add popup
-
-    new mapboxgl.Popup({
+    }).setLngLat(loc.coordinates).addTo(map);
+    new maplibregl.Popup({
       offset: 30
-    }).setLngLat(loc.coordinates).setHTML(`<p>Day ${loc.day}: ${loc.description}</p>`).addTo(map); // Extend map bounds to include current location
-
+    }).setLngLat(loc.coordinates).setHTML("<p>Day ".concat(loc.day, ": ").concat(loc.description, "</p>")).addTo(map);
     bounds.extend(loc.coordinates);
   });
   map.fitBounds(bounds, {
@@ -2335,12 +1260,11 @@ const displayMap = locations => {
       right: 100
     }
   });
-  map.fitBounds(bounds);
 };
-
 exports.displayMap = displayMap;
 },{}],"../../node_modules/axios/lib/helpers/bind.js":[function(require,module,exports) {
 'use strict';
+
 /**
  * Create a bound version of a function with a specified `this` context
  *
@@ -2348,12 +1272,10 @@ exports.displayMap = displayMap;
  * @param {*} thisArg - The value to be passed as the `this` parameter
  * @returns {Function} A new function that will call the original function with the specified `this` context
  */
-
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = bind;
-
 function bind(fn, thisArg) {
   return function wrap() {
     return fn.apply(thisArg, arguments);
@@ -2362,22 +1284,21 @@ function bind(fn, thisArg) {
 },{}],"../../node_modules/process/browser.js":[function(require,module,exports) {
 
 // shim for using process in browser
-var process = module.exports = {}; // cached from whatever global is present so that test runners that stub it
+var process = module.exports = {};
+
+// cached from whatever global is present so that test runners that stub it
 // don't break things.  But we need to wrap it in a try catch in case it is
 // wrapped in strict mode code which doesn't define any globals.  It's inside a
 // function because try/catches deoptimize in certain engines.
 
 var cachedSetTimeout;
 var cachedClearTimeout;
-
 function defaultSetTimout() {
   throw new Error('setTimeout has not been defined');
 }
-
 function defaultClearTimeout() {
   throw new Error('clearTimeout has not been defined');
 }
-
 (function () {
   try {
     if (typeof setTimeout === 'function') {
@@ -2388,7 +1309,6 @@ function defaultClearTimeout() {
   } catch (e) {
     cachedSetTimeout = defaultSetTimout;
   }
-
   try {
     if (typeof clearTimeout === 'function') {
       cachedClearTimeout = clearTimeout;
@@ -2399,19 +1319,16 @@ function defaultClearTimeout() {
     cachedClearTimeout = defaultClearTimeout;
   }
 })();
-
 function runTimeout(fun) {
   if (cachedSetTimeout === setTimeout) {
     //normal enviroments in sane situations
     return setTimeout(fun, 0);
-  } // if setTimeout wasn't available but was latter defined
-
-
+  }
+  // if setTimeout wasn't available but was latter defined
   if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
     cachedSetTimeout = setTimeout;
     return setTimeout(fun, 0);
   }
-
   try {
     // when when somebody has screwed with setTimeout but no I.E. maddness
     return cachedSetTimeout(fun, 0);
@@ -2425,19 +1342,16 @@ function runTimeout(fun) {
     }
   }
 }
-
 function runClearTimeout(marker) {
   if (cachedClearTimeout === clearTimeout) {
     //normal enviroments in sane situations
     return clearTimeout(marker);
-  } // if clearTimeout wasn't available but was latter defined
-
-
+  }
+  // if clearTimeout wasn't available but was latter defined
   if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
     cachedClearTimeout = clearTimeout;
     return clearTimeout(marker);
   }
-
   try {
     // when when somebody has screwed with setTimeout but no I.E. maddness
     return cachedClearTimeout(marker);
@@ -2452,93 +1366,73 @@ function runClearTimeout(marker) {
     }
   }
 }
-
 var queue = [];
 var draining = false;
 var currentQueue;
 var queueIndex = -1;
-
 function cleanUpNextTick() {
   if (!draining || !currentQueue) {
     return;
   }
-
   draining = false;
-
   if (currentQueue.length) {
     queue = currentQueue.concat(queue);
   } else {
     queueIndex = -1;
   }
-
   if (queue.length) {
     drainQueue();
   }
 }
-
 function drainQueue() {
   if (draining) {
     return;
   }
-
   var timeout = runTimeout(cleanUpNextTick);
   draining = true;
   var len = queue.length;
-
   while (len) {
     currentQueue = queue;
     queue = [];
-
     while (++queueIndex < len) {
       if (currentQueue) {
         currentQueue[queueIndex].run();
       }
     }
-
     queueIndex = -1;
     len = queue.length;
   }
-
   currentQueue = null;
   draining = false;
   runClearTimeout(timeout);
 }
-
 process.nextTick = function (fun) {
   var args = new Array(arguments.length - 1);
-
   if (arguments.length > 1) {
     for (var i = 1; i < arguments.length; i++) {
       args[i - 1] = arguments[i];
     }
   }
-
   queue.push(new Item(fun, args));
-
   if (queue.length === 1 && !draining) {
     runTimeout(drainQueue);
   }
-}; // v8 likes predictible objects
+};
 
-
+// v8 likes predictible objects
 function Item(fun, array) {
   this.fun = fun;
   this.array = array;
 }
-
 Item.prototype.run = function () {
   this.fun.apply(null, this.array);
 };
-
 process.title = 'browser';
 process.env = {};
 process.argv = [];
 process.version = ''; // empty string to avoid regexp issues
-
 process.versions = {};
-
 function noop() {}
-
 process.on = noop;
 process.addListener = noop;
 process.once = noop;
@@ -2548,23 +1442,18 @@ process.removeAllListeners = noop;
 process.emit = noop;
 process.prependListener = noop;
 process.prependOnceListener = noop;
-
 process.listeners = function (name) {
   return [];
 };
-
 process.binding = function (name) {
   throw new Error('process.binding is not supported');
 };
-
 process.cwd = function () {
   return '/';
 };
-
 process.chdir = function (dir) {
   throw new Error('process.chdir is not supported');
 };
-
 process.umask = function () {
   return 0;
 };
@@ -2578,12 +1467,10 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _bind = _interopRequireDefault(require("./helpers/bind.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 // utils is a library of generic helper functions non-specific to axios
+
 const {
   toString
 } = Object.prototype;
@@ -2594,18 +1481,16 @@ const {
   iterator,
   toStringTag
 } = Symbol;
-
 const kindOf = (cache => thing => {
   const str = toString.call(thing);
   return cache[str] || (cache[str] = str.slice(8, -1).toLowerCase());
 })(Object.create(null));
-
 const kindOfTest = type => {
   type = type.toLowerCase();
   return thing => kindOf(thing) === type;
 };
-
 const typeOfTest = type => thing => typeof thing === type;
+
 /**
  * Determine if a value is a non-null object
  *
@@ -2613,11 +1498,10 @@ const typeOfTest = type => thing => typeof thing === type;
  *
  * @returns {boolean} True if value is an Array, otherwise false
  */
-
-
 const {
   isArray
 } = Array;
+
 /**
  * Determine if a value is undefined
  *
@@ -2625,8 +1509,8 @@ const {
  *
  * @returns {boolean} True if the value is undefined, otherwise false
  */
-
 const isUndefined = typeOfTest('undefined');
+
 /**
  * Determine if a value is a Buffer
  *
@@ -2634,10 +1518,10 @@ const isUndefined = typeOfTest('undefined');
  *
  * @returns {boolean} True if value is a Buffer, otherwise false
  */
-
 function isBuffer(val) {
   return val !== null && !isUndefined(val) && val.constructor !== null && !isUndefined(val.constructor) && isFunction(val.constructor.isBuffer) && val.constructor.isBuffer(val);
 }
+
 /**
  * Determine if a value is an ArrayBuffer
  *
@@ -2645,9 +1529,8 @@ function isBuffer(val) {
  *
  * @returns {boolean} True if value is an ArrayBuffer, otherwise false
  */
-
-
 const isArrayBuffer = kindOfTest('ArrayBuffer');
+
 /**
  * Determine if a value is a view on an ArrayBuffer
  *
@@ -2655,18 +1538,16 @@ const isArrayBuffer = kindOfTest('ArrayBuffer');
  *
  * @returns {boolean} True if value is a view on an ArrayBuffer, otherwise false
  */
-
 function isArrayBufferView(val) {
   let result;
-
   if (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView) {
     result = ArrayBuffer.isView(val);
   } else {
     result = val && val.buffer && isArrayBuffer(val.buffer);
   }
-
   return result;
 }
+
 /**
  * Determine if a value is a String
  *
@@ -2674,17 +1555,16 @@ function isArrayBufferView(val) {
  *
  * @returns {boolean} True if value is a String, otherwise false
  */
-
-
 const isString = typeOfTest('string');
+
 /**
  * Determine if a value is a Function
  *
  * @param {*} val The value to test
  * @returns {boolean} True if value is a Function, otherwise false
  */
-
 const isFunction = typeOfTest('function');
+
 /**
  * Determine if a value is a Number
  *
@@ -2692,8 +1572,8 @@ const isFunction = typeOfTest('function');
  *
  * @returns {boolean} True if value is a Number, otherwise false
  */
-
 const isNumber = typeOfTest('number');
+
 /**
  * Determine if a value is an Object
  *
@@ -2701,17 +1581,16 @@ const isNumber = typeOfTest('number');
  *
  * @returns {boolean} True if value is an Object, otherwise false
  */
-
 const isObject = thing => thing !== null && typeof thing === 'object';
+
 /**
  * Determine if a value is a Boolean
  *
  * @param {*} thing The value to test
  * @returns {boolean} True if value is a Boolean, otherwise false
  */
-
-
 const isBoolean = thing => thing === true || thing === false;
+
 /**
  * Determine if a value is a plain Object
  *
@@ -2719,16 +1598,14 @@ const isBoolean = thing => thing === true || thing === false;
  *
  * @returns {boolean} True if value is a plain Object, otherwise false
  */
-
-
 const isPlainObject = val => {
   if (kindOf(val) !== 'object') {
     return false;
   }
-
   const prototype = getPrototypeOf(val);
   return (prototype === null || prototype === Object.prototype || Object.getPrototypeOf(prototype) === null) && !(toStringTag in val) && !(iterator in val);
 };
+
 /**
  * Determine if a value is an empty object (safely handles Buffers)
  *
@@ -2736,14 +1613,11 @@ const isPlainObject = val => {
  *
  * @returns {boolean} True if value is an empty object, otherwise false
  */
-
-
 const isEmptyObject = val => {
   // Early return for non-objects or Buffers to prevent RangeError
   if (!isObject(val) || isBuffer(val)) {
     return false;
   }
-
   try {
     return Object.keys(val).length === 0 && Object.getPrototypeOf(val) === Object.prototype;
   } catch (e) {
@@ -2751,6 +1625,7 @@ const isEmptyObject = val => {
     return false;
   }
 };
+
 /**
  * Determine if a value is a Date
  *
@@ -2758,9 +1633,8 @@ const isEmptyObject = val => {
  *
  * @returns {boolean} True if value is a Date, otherwise false
  */
-
-
 const isDate = kindOfTest('Date');
+
 /**
  * Determine if a value is a File
  *
@@ -2768,8 +1642,8 @@ const isDate = kindOfTest('Date');
  *
  * @returns {boolean} True if value is a File, otherwise false
  */
-
 const isFile = kindOfTest('File');
+
 /**
  * Determine if a value is a React Native Blob
  * React Native "blob": an object with a `uri` attribute. Optionally, it can
@@ -2781,10 +1655,10 @@ const isFile = kindOfTest('File');
  *
  * @returns {boolean} True if value is a React Native Blob, otherwise false
  */
-
 const isReactNativeBlob = value => {
   return !!(value && typeof value.uri !== 'undefined');
 };
+
 /**
  * Determine if environment is React Native
  * ReactNative `FormData` has a non-standard `getParts()` method
@@ -2793,9 +1667,8 @@ const isReactNativeBlob = value => {
  *
  * @returns {boolean} True if environment is React Native, otherwise false
  */
-
-
 const isReactNative = formData => formData && typeof formData.getParts !== 'undefined';
+
 /**
  * Determine if a value is a Blob
  *
@@ -2803,9 +1676,8 @@ const isReactNative = formData => formData && typeof formData.getParts !== 'unde
  *
  * @returns {boolean} True if value is a Blob, otherwise false
  */
-
-
 const isBlob = kindOfTest('Blob');
+
 /**
  * Determine if a value is a FileList
  *
@@ -2813,8 +1685,8 @@ const isBlob = kindOfTest('Blob');
  *
  * @returns {boolean} True if value is a FileList, otherwise false
  */
-
 const isFileList = kindOfTest('FileList');
+
 /**
  * Determine if a value is a Stream
  *
@@ -2822,8 +1694,8 @@ const isFileList = kindOfTest('FileList');
  *
  * @returns {boolean} True if value is a Stream, otherwise false
  */
-
 const isStream = val => isObject(val) && isFunction(val.pipe);
+
 /**
  * Determine if a value is a FormData
  *
@@ -2831,8 +1703,6 @@ const isStream = val => isObject(val) && isFunction(val.pipe);
  *
  * @returns {boolean} True if value is an FormData, otherwise false
  */
-
-
 function getGlobal() {
   if (typeof globalThis !== 'undefined') return globalThis;
   if (typeof self !== 'undefined') return self;
@@ -2840,21 +1710,21 @@ function getGlobal() {
   if (typeof global !== 'undefined') return global;
   return {};
 }
-
 const G = getGlobal();
 const FormDataCtor = typeof G.FormData !== 'undefined' ? G.FormData : undefined;
-
 const isFormData = thing => {
   if (!thing) return false;
-  if (FormDataCtor && thing instanceof FormDataCtor) return true; // Reject plain objects inheriting directly from Object.prototype so prototype-pollution gadgets can't spoof FormData.
-
+  if (FormDataCtor && thing instanceof FormDataCtor) return true;
+  // Reject plain objects inheriting directly from Object.prototype so prototype-pollution gadgets can't spoof FormData.
   const proto = getPrototypeOf(thing);
   if (!proto || proto === Object.prototype) return false;
   if (!isFunction(thing.append)) return false;
   const kind = kindOf(thing);
-  return kind === 'formdata' || // detect form-data instance
+  return kind === 'formdata' ||
+  // detect form-data instance
   kind === 'object' && isFunction(thing.toString) && thing.toString() === '[object FormData]';
 };
+
 /**
  * Determine if a value is a URLSearchParams object
  *
@@ -2862,10 +1732,9 @@ const isFormData = thing => {
  *
  * @returns {boolean} True if value is a URLSearchParams object, otherwise false
  */
-
-
 const isURLSearchParams = kindOfTest('URLSearchParams');
 const [isReadableStream, isRequest, isResponse, isHeaders] = ['ReadableStream', 'Request', 'Response', 'Headers'].map(kindOfTest);
+
 /**
  * Trim excess whitespace off the beginning and end of a string
  *
@@ -2873,7 +1742,6 @@ const [isReadableStream, isRequest, isResponse, isHeaders] = ['ReadableStream', 
  *
  * @returns {String} The String freed of excess whitespace
  */
-
 const trim = str => {
   return str.trim ? str.trim() : str.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '');
 };
@@ -2893,8 +1761,6 @@ const trim = str => {
  * @param {Boolean} [options.allOwnKeys = false]
  * @returns {any}
  */
-
-
 function forEach(obj, fn, {
   allOwnKeys = false
 } = {}) {
@@ -2902,15 +1768,14 @@ function forEach(obj, fn, {
   if (obj === null || typeof obj === 'undefined') {
     return;
   }
-
   let i;
-  let l; // Force an array if not already something iterable
+  let l;
 
+  // Force an array if not already something iterable
   if (typeof obj !== 'object') {
     /*eslint no-param-reassign:0*/
     obj = [obj];
   }
-
   if (isArray(obj)) {
     // Iterate over array values
     for (i = 0, l = obj.length; i < l; i++) {
@@ -2920,19 +1785,19 @@ function forEach(obj, fn, {
     // Buffer check
     if (isBuffer(obj)) {
       return;
-    } // Iterate over object keys
+    }
 
-
+    // Iterate over object keys
     const keys = allOwnKeys ? Object.getOwnPropertyNames(obj) : Object.keys(obj);
     const len = keys.length;
     let key;
-
     for (i = 0; i < len; i++) {
       key = keys[i];
       fn.call(null, obj[key], key, obj);
     }
   }
 }
+
 /**
  * Finds a key in an object, case-insensitive, returning the actual key name.
  * Returns null if the object is a Buffer or if no match is found.
@@ -2941,37 +1806,29 @@ function forEach(obj, fn, {
  * @param {string} key - The key to find (case-insensitive).
  * @returns {?string} The actual key name if found, otherwise null.
  */
-
-
 function findKey(obj, key) {
   if (isBuffer(obj)) {
     return null;
   }
-
   key = key.toLowerCase();
   const keys = Object.keys(obj);
   let i = keys.length;
-
   let _key;
-
   while (i-- > 0) {
     _key = keys[i];
-
     if (key === _key.toLowerCase()) {
       return _key;
     }
   }
-
   return null;
 }
-
 const _global = (() => {
   /*eslint no-undef:0*/
   if (typeof globalThis !== 'undefined') return globalThis;
   return typeof self !== 'undefined' ? self : typeof window !== 'undefined' ? window : global;
 })();
-
 const isContextDefined = context => !isUndefined(context) && context !== _global;
+
 /**
  * Accepts varargs expecting each argument to be an object, then
  * immutably merges the properties of each object and returns result.
@@ -2990,27 +1847,22 @@ const isContextDefined = context => !isUndefined(context) && context !== _global
  *
  * @returns {Object} Result of all merge properties
  */
-
-
 function merge(...objs) {
   const {
     caseless,
     skipUndefined
   } = isContextDefined(this) && this || {};
   const result = {};
-
   const assignValue = (val, key) => {
     // Skip dangerous property names to prevent prototype pollution
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
       return;
     }
-
-    const targetKey = caseless && findKey(result, key) || key; // Read via own-prop only — a bare `result[targetKey]` walks the prototype
+    const targetKey = caseless && findKey(result, key) || key;
+    // Read via own-prop only — a bare `result[targetKey]` walks the prototype
     // chain, so a polluted Object.prototype value could surface here and get
     // copied into the merged result.
-
     const existing = hasOwnProperty(result, targetKey) ? result[targetKey] : undefined;
-
     if (isPlainObject(existing) && isPlainObject(val)) {
       result[targetKey] = merge(existing, val);
     } else if (isPlainObject(val)) {
@@ -3021,13 +1873,12 @@ function merge(...objs) {
       result[targetKey] = val;
     }
   };
-
   for (let i = 0, l = objs.length; i < l; i++) {
     objs[i] && forEach(objs[i], assignValue);
   }
-
   return result;
 }
+
 /**
  * Extends object a by mutably adding to it the properties of object b.
  *
@@ -3039,8 +1890,6 @@ function merge(...objs) {
  * @param {Boolean} [options.allOwnKeys]
  * @returns {Object} The resulting value of object a
  */
-
-
 const extend = (a, b, thisArg, {
   allOwnKeys
 } = {}) => {
@@ -3069,6 +1918,7 @@ const extend = (a, b, thisArg, {
   });
   return a;
 };
+
 /**
  * Remove byte order marker. This catches EF BB BF (the UTF-8 BOM)
  *
@@ -3076,15 +1926,13 @@ const extend = (a, b, thisArg, {
  *
  * @returns {string} content value without BOM
  */
-
-
 const stripBOM = content => {
   if (content.charCodeAt(0) === 0xfeff) {
     content = content.slice(1);
   }
-
   return content;
 };
+
 /**
  * Inherit the prototype methods from one constructor into another
  * @param {function} constructor
@@ -3094,8 +1942,6 @@ const stripBOM = content => {
  *
  * @returns {void}
  */
-
-
 const inherits = (constructor, superConstructor, props, descriptors) => {
   constructor.prototype = Object.create(superConstructor.prototype, descriptors);
   Object.defineProperty(constructor.prototype, 'constructor', {
@@ -3111,6 +1957,7 @@ const inherits = (constructor, superConstructor, props, descriptors) => {
   });
   props && Object.assign(constructor.prototype, props);
 };
+
 /**
  * Resolve object with deep prototype chain to a flat object
  * @param {Object} sourceObj source object
@@ -3120,35 +1967,29 @@ const inherits = (constructor, superConstructor, props, descriptors) => {
  *
  * @returns {Object}
  */
-
-
 const toFlatObject = (sourceObj, destObj, filter, propFilter) => {
   let props;
   let i;
   let prop;
   const merged = {};
-  destObj = destObj || {}; // eslint-disable-next-line no-eq-null,eqeqeq
-
+  destObj = destObj || {};
+  // eslint-disable-next-line no-eq-null,eqeqeq
   if (sourceObj == null) return destObj;
-
   do {
     props = Object.getOwnPropertyNames(sourceObj);
     i = props.length;
-
     while (i-- > 0) {
       prop = props[i];
-
       if ((!propFilter || propFilter(prop, sourceObj, destObj)) && !merged[prop]) {
         destObj[prop] = sourceObj[prop];
         merged[prop] = true;
       }
     }
-
     sourceObj = filter !== false && getPrototypeOf(sourceObj);
   } while (sourceObj && (!filter || filter(sourceObj, destObj)) && sourceObj !== Object.prototype);
-
   return destObj;
 };
+
 /**
  * Determines whether a string ends with the characters of a specified string
  *
@@ -3158,19 +1999,16 @@ const toFlatObject = (sourceObj, destObj, filter, propFilter) => {
  *
  * @returns {boolean}
  */
-
-
 const endsWith = (str, searchString, position) => {
   str = String(str);
-
   if (position === undefined || position > str.length) {
     position = str.length;
   }
-
   position -= searchString.length;
   const lastIndex = str.indexOf(searchString, position);
   return lastIndex !== -1 && lastIndex === position;
 };
+
 /**
  * Returns new array from array like object or null if failed
  *
@@ -3178,21 +2016,18 @@ const endsWith = (str, searchString, position) => {
  *
  * @returns {?Array}
  */
-
-
 const toArray = thing => {
   if (!thing) return null;
   if (isArray(thing)) return thing;
   let i = thing.length;
   if (!isNumber(i)) return null;
   const arr = new Array(i);
-
   while (i-- > 0) {
     arr[i] = thing[i];
   }
-
   return arr;
 };
+
 /**
  * Checking if the Uint8Array exists and if it does, it returns a function that checks if the
  * thing passed in is an instance of Uint8Array
@@ -3202,14 +2037,13 @@ const toArray = thing => {
  * @returns {Array}
  */
 // eslint-disable-next-line func-names
-
-
 const isTypedArray = (TypedArray => {
   // eslint-disable-next-line func-names
   return thing => {
     return TypedArray && thing instanceof TypedArray;
   };
 })(typeof Uint8Array !== 'undefined' && getPrototypeOf(Uint8Array));
+
 /**
  * For each entry in the object, call the function with the key and value.
  *
@@ -3218,20 +2052,16 @@ const isTypedArray = (TypedArray => {
  *
  * @returns {void}
  */
-
-
 const forEachEntry = (obj, fn) => {
   const generator = obj && obj[iterator];
-
   const _iterator = generator.call(obj);
-
   let result;
-
   while ((result = _iterator.next()) && !result.done) {
     const pair = result.value;
     fn.call(obj, pair[0], pair[1]);
   }
 };
+
 /**
  * It takes a regular expression and a string, and returns an array of all the matches
  *
@@ -3240,34 +2070,28 @@ const forEachEntry = (obj, fn) => {
  *
  * @returns {Array<boolean>}
  */
-
-
 const matchAll = (regExp, str) => {
   let matches;
   const arr = [];
-
   while ((matches = regExp.exec(str)) !== null) {
     arr.push(matches);
   }
-
   return arr;
 };
+
 /* Checking if the kindOfTest function returns true when passed an HTMLFormElement. */
-
-
 const isHTMLForm = kindOfTest('HTMLFormElement');
-
 const toCamelCase = str => {
   return str.toLowerCase().replace(/[-_\s]([a-z\d])(\w*)/g, function replacer(m, p1, p2) {
     return p1.toUpperCase() + p2;
   });
 };
+
 /* Creating a function that will check if an object has a property. */
-
-
 const hasOwnProperty = (({
   hasOwnProperty
 }) => (obj, prop) => hasOwnProperty.call(obj, prop))(Object.prototype);
+
 /**
  * Determine if a value is a RegExp object
  *
@@ -3275,27 +2099,23 @@ const hasOwnProperty = (({
  *
  * @returns {boolean} True if value is a RegExp object, otherwise false
  */
-
-
 const isRegExp = kindOfTest('RegExp');
-
 const reduceDescriptors = (obj, reducer) => {
   const descriptors = Object.getOwnPropertyDescriptors(obj);
   const reducedDescriptors = {};
   forEach(descriptors, (descriptor, name) => {
     let ret;
-
     if ((ret = reducer(descriptor, name, obj)) !== false) {
       reducedDescriptors[name] = ret || descriptor;
     }
   });
   Object.defineProperties(obj, reducedDescriptors);
 };
+
 /**
  * Makes all methods read-only
  * @param {Object} obj
  */
-
 
 const freezeMethods = obj => {
   reduceDescriptors(obj, (descriptor, name) => {
@@ -3303,16 +2123,13 @@ const freezeMethods = obj => {
     if (isFunction(obj) && ['arguments', 'caller', 'callee'].includes(name)) {
       return false;
     }
-
     const value = obj[name];
     if (!isFunction(value)) return;
     descriptor.enumerable = false;
-
     if ('writable' in descriptor) {
       descriptor.writable = false;
       return;
     }
-
     if (!descriptor.set) {
       descriptor.set = () => {
         throw Error("Can not rewrite read-only method '" + name + "'");
@@ -3320,6 +2137,7 @@ const freezeMethods = obj => {
     }
   });
 };
+
 /**
  * Converts an array or a delimited string into an object set with values as keys and true as values.
  * Useful for fast membership checks.
@@ -3328,26 +2146,21 @@ const freezeMethods = obj => {
  * @param {string} delimiter - The delimiter to use if input is a string.
  * @returns {Object} An object with keys from the array or string, values set to true.
  */
-
-
 const toObjectSet = (arrayOrString, delimiter) => {
   const obj = {};
-
   const define = arr => {
     arr.forEach(value => {
       obj[value] = true;
     });
   };
-
   isArray(arrayOrString) ? define(arrayOrString) : define(String(arrayOrString).split(delimiter));
   return obj;
 };
-
 const noop = () => {};
-
 const toFiniteNumber = (value, defaultValue) => {
   return value != null && Number.isFinite(value = +value) ? value : defaultValue;
 };
+
 /**
  * If the thing is a FormData object, return true, otherwise return false.
  *
@@ -3355,33 +2168,28 @@ const toFiniteNumber = (value, defaultValue) => {
  *
  * @returns {boolean}
  */
-
-
 function isSpecCompliantForm(thing) {
   return !!(thing && isFunction(thing.append) && thing[toStringTag] === 'FormData' && thing[iterator]);
 }
+
 /**
  * Recursively converts an object to a JSON-compatible object, handling circular references and Buffers.
  *
  * @param {Object} obj - The object to convert.
  * @returns {Object} The JSON-compatible object.
  */
-
-
 const toJSONObject = obj => {
   const visited = new WeakSet();
-
   const visit = source => {
     if (isObject(source)) {
       if (visited.has(source)) {
         return;
-      } //Buffer check
+      }
 
-
+      //Buffer check
       if (isBuffer(source)) {
         return source;
       }
-
       if (!('toJSON' in source)) {
         // add-on descent / delete-on-ascent: preserves path semantics, so DAG nodes serialise at every occurrence (see #7230).
         visited.add(source);
@@ -3394,29 +2202,28 @@ const toJSONObject = obj => {
         return target;
       }
     }
-
     return source;
   };
-
   return visit(obj);
 };
+
 /**
  * Determines if a value is an async function.
  *
  * @param {*} thing - The value to test.
  * @returns {boolean} True if value is an async function, otherwise false.
  */
-
-
 const isAsyncFn = kindOfTest('AsyncFunction');
+
 /**
  * Determines if a value is thenable (has then and catch methods).
  *
  * @param {*} thing - The value to test.
  * @returns {boolean} True if value is thenable, otherwise false.
  */
+const isThenable = thing => thing && (isObject(thing) || isFunction(thing)) && isFunction(thing.then) && isFunction(thing.catch);
 
-const isThenable = thing => thing && (isObject(thing) || isFunction(thing)) && isFunction(thing.then) && isFunction(thing.catch); // original code
+// original code
 // https://github.com/DigitalBrainJS/AxiosPromise/blob/16deab13710ec09779922131f3fa5954320f83ab/lib/utils.js#L11-L34
 
 /**
@@ -3427,13 +2234,10 @@ const isThenable = thing => thing && (isObject(thing) || isFunction(thing)) && i
  * @param {boolean} postMessageSupported - Whether postMessage is supported.
  * @returns {Function} A function to schedule a callback asynchronously.
  */
-
-
 const _setImmediate = ((setImmediateSupported, postMessageSupported) => {
   if (setImmediateSupported) {
     return setImmediate;
   }
-
   return postMessageSupported ? ((token, callbacks) => {
     _global.addEventListener('message', ({
       source,
@@ -3443,26 +2247,24 @@ const _setImmediate = ((setImmediateSupported, postMessageSupported) => {
         callbacks.length && callbacks.shift()();
       }
     }, false);
-
     return cb => {
       callbacks.push(cb);
-
       _global.postMessage(token, '*');
     };
   })(`axios@${Math.random()}`, []) : cb => setTimeout(cb);
 })(typeof setImmediate === 'function', isFunction(_global.postMessage));
+
 /**
  * Schedules a microtask or asynchronous callback as soon as possible.
  * Uses queueMicrotask if available, otherwise falls back to process.nextTick or _setImmediate.
  *
  * @type {Function}
  */
+const asap = typeof queueMicrotask !== 'undefined' ? queueMicrotask.bind(_global) : typeof process !== 'undefined' && process.nextTick || _setImmediate;
 
-
-const asap = typeof queueMicrotask !== 'undefined' ? queueMicrotask.bind(_global) : typeof process !== 'undefined' && process.nextTick || _setImmediate; // *********************
+// *********************
 
 const isIterable = thing => thing != null && isFunction(thing[iterator]);
-
 var _default = exports.default = {
   isArray,
   isArrayBuffer,
@@ -3532,14 +2334,12 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 // RawAxiosHeaders whose duplicates are ignored by node
 // c.f. https://nodejs.org/api/http.html#http_message_headers
 const ignoreDuplicateOf = _utils.default.toObjectSet(['age', 'authorization', 'content-length', 'content-type', 'etag', 'expires', 'from', 'host', 'if-modified-since', 'if-unmodified-since', 'last-modified', 'location', 'max-forwards', 'proxy-authorization', 'referer', 'retry-after', 'user-agent']);
+
 /**
  * Parse headers into an object
  *
@@ -3554,8 +2354,6 @@ const ignoreDuplicateOf = _utils.default.toObjectSet(['age', 'authorization', 'c
  *
  * @returns {Object} Headers parsed into an object
  */
-
-
 var _default = rawHeaders => {
   const parsed = {};
   let key;
@@ -3565,11 +2363,9 @@ var _default = rawHeaders => {
     i = line.indexOf(':');
     key = line.substring(0, i).trim().toLowerCase();
     val = line.substring(i + 1).trim();
-
     if (!key || parsed[key] && ignoreDuplicateOf[key]) {
       return;
     }
-
     if (key === 'set-cookie') {
       if (parsed[key]) {
         parsed[key].push(val);
@@ -3582,7 +2378,6 @@ var _default = rawHeaders => {
   });
   return parsed;
 };
-
 exports.default = _default;
 },{"../utils.js":"../../node_modules/axios/lib/utils.js"}],"../../node_modules/axios/lib/helpers/sanitizeHeaderValue.js":[function(require,module,exports) {
 'use strict';
@@ -3592,67 +2387,48 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.sanitizeHeaderValue = exports.sanitizeByteStringHeaderValue = void 0;
 exports.toByteStringHeaderObject = toByteStringHeaderObject;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 function trimSPorHTAB(str) {
   let start = 0;
   let end = str.length;
-
   while (start < end) {
     const code = str.charCodeAt(start);
-
     if (code !== 0x09 && code !== 0x20) {
       break;
     }
-
     start += 1;
   }
-
   while (end > start) {
     const code = str.charCodeAt(end - 1);
-
     if (code !== 0x09 && code !== 0x20) {
       break;
     }
-
     end -= 1;
   }
-
   return start === 0 && end === str.length ? str : str.slice(start, end);
-} // The control-code ranges are intentional: header sanitization strips C0/DEL bytes.
+}
+
+// The control-code ranges are intentional: header sanitization strips C0/DEL bytes.
 // eslint-disable-next-line no-control-regex
-
-
-const INVALID_UNICODE_HEADER_VALUE_CHARS = new RegExp('[\\u0000-\\u0008\\u000a-\\u001f\\u007f]+', 'g'); // eslint-disable-next-line no-control-regex
-
+const INVALID_UNICODE_HEADER_VALUE_CHARS = new RegExp('[\\u0000-\\u0008\\u000a-\\u001f\\u007f]+', 'g');
+// eslint-disable-next-line no-control-regex
 const INVALID_BYTE_STRING_HEADER_VALUE_CHARS = new RegExp('[^\\u0009\\u0020-\\u007e\\u0080-\\u00ff]+', 'g');
-
 function sanitizeValue(value, invalidChars) {
   if (_utils.default.isArray(value)) {
     return value.map(item => sanitizeValue(item, invalidChars));
   }
-
   return trimSPorHTAB(String(value).replace(invalidChars, ''));
 }
-
 const sanitizeHeaderValue = value => sanitizeValue(value, INVALID_UNICODE_HEADER_VALUE_CHARS);
-
 exports.sanitizeHeaderValue = sanitizeHeaderValue;
-
 const sanitizeByteStringHeaderValue = value => sanitizeValue(value, INVALID_BYTE_STRING_HEADER_VALUE_CHARS);
-
 exports.sanitizeByteStringHeaderValue = sanitizeByteStringHeaderValue;
-
 function toByteStringHeaderObject(headers) {
   const byteStringHeaders = Object.create(null);
-
   _utils.default.forEach(headers.toJSON(), (value, header) => {
     byteStringHeaders[header] = sanitizeByteStringHeaderValue(value);
   });
-
   return byteStringHeaders;
 }
 },{"../utils.js":"../../node_modules/axios/lib/utils.js"}],"../../node_modules/axios/lib/core/AxiosHeaders.js":[function(require,module,exports) {
@@ -3662,72 +2438,52 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _parseHeaders = _interopRequireDefault(require("../helpers/parseHeaders.js"));
-
 var _sanitizeHeaderValue = require("../helpers/sanitizeHeaderValue.js");
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 const $internals = Symbol('internals');
-
 function normalizeHeader(header) {
   return header && String(header).trim().toLowerCase();
 }
-
 function normalizeValue(value) {
   if (value === false || value == null) {
     return value;
   }
-
   return _utils.default.isArray(value) ? value.map(normalizeValue) : (0, _sanitizeHeaderValue.sanitizeHeaderValue)(String(value));
 }
-
 function parseTokens(str) {
   const tokens = Object.create(null);
   const tokensRE = /([^\s,;=]+)\s*(?:=\s*([^,;]+))?/g;
   let match;
-
   while (match = tokensRE.exec(str)) {
     tokens[match[1]] = match[2];
   }
-
   return tokens;
 }
-
 const isValidHeaderName = str => /^[-_a-zA-Z0-9^`|~,!#$%&'*+.]+$/.test(str.trim());
-
 function matchHeaderValue(context, value, header, filter, isHeaderNameFilter) {
   if (_utils.default.isFunction(filter)) {
     return filter.call(this, value, header);
   }
-
   if (isHeaderNameFilter) {
     value = header;
   }
-
   if (!_utils.default.isString(value)) return;
-
   if (_utils.default.isString(filter)) {
     return value.indexOf(filter) !== -1;
   }
-
   if (_utils.default.isRegExp(filter)) {
     return filter.test(value);
   }
 }
-
 function formatHeader(header) {
   return header.trim().toLowerCase().replace(/([a-z\d])(\w*)/g, (w, char, str) => {
     return char.toUpperCase() + str;
   });
 }
-
 function buildAccessors(obj, header) {
   const accessorName = _utils.default.toCamelCase(' ' + header);
-
   ['get', 'set', 'has'].forEach(methodName => {
     Object.defineProperty(obj, methodName + accessorName, {
       // Null-proto descriptor so a polluted Object.prototype.get cannot turn
@@ -3740,248 +2496,187 @@ function buildAccessors(obj, header) {
     });
   });
 }
-
 class AxiosHeaders {
   constructor(headers) {
     headers && this.set(headers);
   }
-
   set(header, valueOrRewrite, rewrite) {
     const self = this;
-
     function setHeader(_value, _header, _rewrite) {
       const lHeader = normalizeHeader(_header);
-
       if (!lHeader) {
         throw new Error('header name must be a non-empty string');
       }
-
       const key = _utils.default.findKey(self, lHeader);
-
       if (!key || self[key] === undefined || _rewrite === true || _rewrite === undefined && self[key] !== false) {
         self[key || _header] = normalizeValue(_value);
       }
     }
-
     const setHeaders = (headers, _rewrite) => _utils.default.forEach(headers, (_value, _header) => setHeader(_value, _header, _rewrite));
-
     if (_utils.default.isPlainObject(header) || header instanceof this.constructor) {
       setHeaders(header, valueOrRewrite);
     } else if (_utils.default.isString(header) && (header = header.trim()) && !isValidHeaderName(header)) {
       setHeaders((0, _parseHeaders.default)(header), valueOrRewrite);
     } else if (_utils.default.isObject(header) && _utils.default.isIterable(header)) {
       let obj = {},
-          dest,
-          key;
-
+        dest,
+        key;
       for (const entry of header) {
         if (!_utils.default.isArray(entry)) {
           throw TypeError('Object iterator must return a key-value pair');
         }
-
         obj[key = entry[0]] = (dest = obj[key]) ? _utils.default.isArray(dest) ? [...dest, entry[1]] : [dest, entry[1]] : entry[1];
       }
-
       setHeaders(obj, valueOrRewrite);
     } else {
       header != null && setHeader(valueOrRewrite, header, rewrite);
     }
-
     return this;
   }
-
   get(header, parser) {
     header = normalizeHeader(header);
-
     if (header) {
       const key = _utils.default.findKey(this, header);
-
       if (key) {
         const value = this[key];
-
         if (!parser) {
           return value;
         }
-
         if (parser === true) {
           return parseTokens(value);
         }
-
         if (_utils.default.isFunction(parser)) {
           return parser.call(this, value, key);
         }
-
         if (_utils.default.isRegExp(parser)) {
           return parser.exec(value);
         }
-
         throw new TypeError('parser must be boolean|regexp|function');
       }
     }
   }
-
   has(header, matcher) {
     header = normalizeHeader(header);
-
     if (header) {
       const key = _utils.default.findKey(this, header);
-
       return !!(key && this[key] !== undefined && (!matcher || matchHeaderValue(this, this[key], key, matcher)));
     }
-
     return false;
   }
-
   delete(header, matcher) {
     const self = this;
     let deleted = false;
-
     function deleteHeader(_header) {
       _header = normalizeHeader(_header);
-
       if (_header) {
         const key = _utils.default.findKey(self, _header);
-
         if (key && (!matcher || matchHeaderValue(self, self[key], key, matcher))) {
           delete self[key];
           deleted = true;
         }
       }
     }
-
     if (_utils.default.isArray(header)) {
       header.forEach(deleteHeader);
     } else {
       deleteHeader(header);
     }
-
     return deleted;
   }
-
   clear(matcher) {
     const keys = Object.keys(this);
     let i = keys.length;
     let deleted = false;
-
     while (i--) {
       const key = keys[i];
-
       if (!matcher || matchHeaderValue(this, this[key], key, matcher, true)) {
         delete this[key];
         deleted = true;
       }
     }
-
     return deleted;
   }
-
   normalize(format) {
     const self = this;
     const headers = {};
-
     _utils.default.forEach(this, (value, header) => {
       const key = _utils.default.findKey(headers, header);
-
       if (key) {
         self[key] = normalizeValue(value);
         delete self[header];
         return;
       }
-
       const normalized = format ? formatHeader(header) : String(header).trim();
-
       if (normalized !== header) {
         delete self[header];
       }
-
       self[normalized] = normalizeValue(value);
       headers[normalized] = true;
     });
-
     return this;
   }
-
   concat(...targets) {
     return this.constructor.concat(this, ...targets);
   }
-
   toJSON(asStrings) {
     const obj = Object.create(null);
-
     _utils.default.forEach(this, (value, header) => {
       value != null && value !== false && (obj[header] = asStrings && _utils.default.isArray(value) ? value.join(', ') : value);
     });
-
     return obj;
   }
-
   [Symbol.iterator]() {
     return Object.entries(this.toJSON())[Symbol.iterator]();
   }
-
   toString() {
     return Object.entries(this.toJSON()).map(([header, value]) => header + ': ' + value).join('\n');
   }
-
   getSetCookie() {
     return this.get('set-cookie') || [];
   }
-
   get [Symbol.toStringTag]() {
     return 'AxiosHeaders';
   }
-
   static from(thing) {
     return thing instanceof this ? thing : new this(thing);
   }
-
   static concat(first, ...targets) {
     const computed = new this(first);
     targets.forEach(target => computed.set(target));
     return computed;
   }
-
   static accessor(header) {
     const internals = this[$internals] = this[$internals] = {
       accessors: {}
     };
     const accessors = internals.accessors;
     const prototype = this.prototype;
-
     function defineAccessor(_header) {
       const lHeader = normalizeHeader(_header);
-
       if (!accessors[lHeader]) {
         buildAccessors(prototype, _header);
         accessors[lHeader] = true;
       }
     }
-
     _utils.default.isArray(header) ? header.forEach(defineAccessor) : defineAccessor(header);
     return this;
   }
-
 }
+AxiosHeaders.accessor(['Content-Type', 'Content-Length', 'Accept', 'Accept-Encoding', 'User-Agent', 'Authorization']);
 
-AxiosHeaders.accessor(['Content-Type', 'Content-Length', 'Accept', 'Accept-Encoding', 'User-Agent', 'Authorization']); // reserved names hotfix
-
+// reserved names hotfix
 _utils.default.reduceDescriptors(AxiosHeaders.prototype, ({
   value
 }, key) => {
   let mapped = key[0].toUpperCase() + key.slice(1); // map `set` => `Set`
-
   return {
     get: () => value,
-
     set(headerValue) {
       this[mapped] = headerValue;
     }
-
   };
 });
-
 _utils.default.freezeMethods(AxiosHeaders);
-
 var _default = exports.default = AxiosHeaders;
 },{"../utils.js":"../../node_modules/axios/lib/utils.js","../helpers/parseHeaders.js":"../../node_modules/axios/lib/helpers/parseHeaders.js","../helpers/sanitizeHeaderValue.js":"../../node_modules/axios/lib/helpers/sanitizeHeaderValue.js"}],"../../node_modules/axios/lib/core/AxiosError.js":[function(require,module,exports) {
 'use strict';
@@ -3990,57 +2685,43 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _AxiosHeaders = _interopRequireDefault(require("./AxiosHeaders.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 const REDACTED = '[REDACTED ****]';
-
 function hasOwnOrPrototypeToJSON(source) {
   if (_utils.default.hasOwnProp(source, 'toJSON')) {
     return true;
   }
-
   let prototype = Object.getPrototypeOf(source);
-
   while (prototype && prototype !== Object.prototype) {
     if (_utils.default.hasOwnProp(prototype, 'toJSON')) {
       return true;
     }
-
     prototype = Object.getPrototypeOf(prototype);
   }
-
   return false;
-} // Build a plain-object snapshot of `config` and replace the value of any key
+}
+
+// Build a plain-object snapshot of `config` and replace the value of any key
 // (case-insensitive) listed in `redactKeys` with REDACTED. Walks through arrays
 // and AxiosHeaders, and short-circuits on circular references.
-
-
 function redactConfig(config, redactKeys) {
   const lowerKeys = new Set(redactKeys.map(k => String(k).toLowerCase()));
   const seen = [];
-
   const visit = source => {
     if (source === null || typeof source !== 'object') return source;
     if (_utils.default.isBuffer(source)) return source;
     if (seen.indexOf(source) !== -1) return undefined;
-
     if (source instanceof _AxiosHeaders.default) {
       source = source.toJSON();
     }
-
     seen.push(source);
     let result;
-
     if (_utils.default.isArray(source)) {
       result = [];
       source.forEach((v, i) => {
         const reducedValue = visit(v);
-
         if (!_utils.default.isUndefined(reducedValue)) {
           result[i] = reducedValue;
         }
@@ -4050,38 +2731,33 @@ function redactConfig(config, redactKeys) {
         seen.pop();
         return source;
       }
-
       result = Object.create(null);
-
       for (const [key, value] of Object.entries(source)) {
         const reducedValue = lowerKeys.has(key.toLowerCase()) ? REDACTED : visit(value);
-
         if (!_utils.default.isUndefined(reducedValue)) {
           result[key] = reducedValue;
         }
       }
     }
-
     seen.pop();
     return result;
   };
-
   return visit(config);
 }
-
 class AxiosError extends Error {
   static from(error, code, config, request, response, customProps) {
     const axiosError = new AxiosError(error.message, code || error.code, config, request, response);
     axiosError.cause = error;
-    axiosError.name = error.name; // Preserve status from the original error if not already set from response
+    axiosError.name = error.name;
 
+    // Preserve status from the original error if not already set from response
     if (error.status != null && axiosError.status == null) {
       axiosError.status = error.status;
     }
-
     customProps && Object.assign(axiosError, customProps);
     return axiosError;
   }
+
   /**
    * Create an Error with the specified message, config, error code, request and response.
    *
@@ -4093,13 +2769,12 @@ class AxiosError extends Error {
    *
    * @returns {Error} The created error.
    */
-
-
   constructor(message, code, config, request, response) {
-    super(message); // Make message enumerable to maintain backward compatibility
+    super(message);
+
+    // Make message enumerable to maintain backward compatibility
     // The native Error constructor sets message as non-enumerable,
     // but axios < v1.13.3 had it as enumerable
-
     Object.defineProperty(this, 'message', {
       // Null-proto descriptor so a polluted Object.prototype.get cannot turn
       // this data descriptor into an accessor descriptor on the way in.
@@ -4114,13 +2789,11 @@ class AxiosError extends Error {
     code && (this.code = code);
     config && (this.config = config);
     request && (this.request = request);
-
     if (response) {
       this.response = response;
       this.status = response.status;
     }
   }
-
   toJSON() {
     // Opt-in redaction: when the request config carries a `redact` array, the
     // value of any matching key (case-insensitive, at any depth) is replaced
@@ -4147,10 +2820,9 @@ class AxiosError extends Error {
       status: this.status
     };
   }
+}
 
-} // This can be changed to static properties as soon as the parser options in .eslint.cjs are updated.
-
-
+// This can be changed to static properties as soon as the parser options in .eslint.cjs are updated.
 AxiosError.ERR_BAD_OPTION_VALUE = 'ERR_BAD_OPTION_VALUE';
 AxiosError.ERR_BAD_OPTION = 'ERR_BAD_OPTION';
 AxiosError.ECONNABORTED = 'ECONNABORTED';
@@ -4165,7 +2837,6 @@ AxiosError.ERR_CANCELED = 'ERR_CANCELED';
 AxiosError.ERR_NOT_SUPPORT = 'ERR_NOT_SUPPORT';
 AxiosError.ERR_INVALID_URL = 'ERR_INVALID_URL';
 AxiosError.ERR_FORM_DATA_DEPTH_EXCEEDED = 'ERR_FORM_DATA_DEPTH_EXCEEDED';
-
 var _default = exports.default = AxiosError;
 },{"../utils.js":"../../node_modules/axios/lib/utils.js","./AxiosHeaders.js":"../../node_modules/axios/lib/core/AxiosHeaders.js"}],"../../node_modules/axios/lib/helpers/null.js":[function(require,module,exports) {
 "use strict";
@@ -4174,7 +2845,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 // eslint-disable-next-line strict
 var _default = exports.default = null;
 },{}],"../../node_modules/base64-js/index.js":[function(require,module,exports) {
@@ -6224,15 +4894,10 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _AxiosError = _interopRequireDefault(require("../core/AxiosError.js"));
-
 var _FormData = _interopRequireDefault(require("../platform/node/classes/FormData.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 // temporary hotfix to avoid circular references until AxiosURLSearchParams is refactored
 
 /**
@@ -6245,6 +4910,7 @@ function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e
 function isVisitable(thing) {
   return _utils.default.isPlainObject(thing) || _utils.default.isArray(thing);
 }
+
 /**
  * It removes the brackets from the end of a string
  *
@@ -6252,11 +4918,10 @@ function isVisitable(thing) {
  *
  * @returns {string} the key without the brackets.
  */
-
-
 function removeBrackets(key) {
   return _utils.default.endsWith(key, '[]') ? key.slice(0, -2) : key;
 }
+
 /**
  * It takes a path, a key, and a boolean, and returns a string
  *
@@ -6266,8 +4931,6 @@ function removeBrackets(key) {
  *
  * @returns {string} The path to the current key.
  */
-
-
 function renderKey(path, key, dots) {
   if (!path) return key;
   return path.concat(key).map(function each(token, i) {
@@ -6276,6 +4939,7 @@ function renderKey(path, key, dots) {
     return !dots && i ? '[' + token + ']' : token;
   }).join(dots ? '.' : '');
 }
+
 /**
  * If the array is an array and none of its elements are visitable, then it's a flat array.
  *
@@ -6283,15 +4947,13 @@ function renderKey(path, key, dots) {
  *
  * @returns {boolean}
  */
-
-
 function isFlatArray(arr) {
   return _utils.default.isArray(arr) && !arr.some(isVisitable);
 }
-
 const predicates = _utils.default.toFlatObject(_utils.default, {}, null, function filter(prop) {
   return /^is[A-Z]/.test(prop);
 });
+
 /**
  * Convert a data object to FormData
  *
@@ -6315,16 +4977,15 @@ const predicates = _utils.default.toFlatObject(_utils.default, {}, null, functio
  *
  * @returns
  */
-
-
 function toFormData(obj, formData, options) {
   if (!_utils.default.isObject(obj)) {
     throw new TypeError('target must be an object');
-  } // eslint-disable-next-line no-param-reassign
+  }
 
+  // eslint-disable-next-line no-param-reassign
+  formData = formData || new (_FormData.default || FormData)();
 
-  formData = formData || new (_FormData.default || FormData)(); // eslint-disable-next-line no-param-reassign
-
+  // eslint-disable-next-line no-param-reassign
   options = _utils.default.toFlatObject(options, {
     metaTokens: true,
     dots: false,
@@ -6333,43 +4994,34 @@ function toFormData(obj, formData, options) {
     // eslint-disable-next-line no-eq-null,eqeqeq
     return !_utils.default.isUndefined(source[option]);
   });
-  const metaTokens = options.metaTokens; // eslint-disable-next-line no-use-before-define
-
+  const metaTokens = options.metaTokens;
+  // eslint-disable-next-line no-use-before-define
   const visitor = options.visitor || defaultVisitor;
   const dots = options.dots;
   const indexes = options.indexes;
-
   const _Blob = options.Blob || typeof Blob !== 'undefined' && Blob;
-
   const maxDepth = options.maxDepth === undefined ? 100 : options.maxDepth;
-
   const useBlob = _Blob && _utils.default.isSpecCompliantForm(formData);
-
   if (!_utils.default.isFunction(visitor)) {
     throw new TypeError('visitor must be a function');
   }
-
   function convertValue(value) {
     if (value === null) return '';
-
     if (_utils.default.isDate(value)) {
       return value.toISOString();
     }
-
     if (_utils.default.isBoolean(value)) {
       return value.toString();
     }
-
     if (!useBlob && _utils.default.isBlob(value)) {
       throw new _AxiosError.default('Blob is not supported. Use a Buffer instead.');
     }
-
     if (_utils.default.isArrayBuffer(value) || _utils.default.isTypedArray(value)) {
       return useBlob && typeof Blob === 'function' ? new Blob([value]) : Buffer.from(value);
     }
-
     return value;
   }
+
   /**
    * Default visitor.
    *
@@ -6380,80 +5032,64 @@ function toFormData(obj, formData, options) {
    *
    * @returns {boolean} return true to visit the each prop of the value recursively
    */
-
-
   function defaultVisitor(value, key, path) {
     let arr = value;
-
     if (_utils.default.isReactNative(formData) && _utils.default.isReactNativeBlob(value)) {
       formData.append(renderKey(path, key, dots), convertValue(value));
       return false;
     }
-
     if (value && !path && typeof value === 'object') {
       if (_utils.default.endsWith(key, '{}')) {
         // eslint-disable-next-line no-param-reassign
-        key = metaTokens ? key : key.slice(0, -2); // eslint-disable-next-line no-param-reassign
-
+        key = metaTokens ? key : key.slice(0, -2);
+        // eslint-disable-next-line no-param-reassign
         value = JSON.stringify(value);
       } else if (_utils.default.isArray(value) && isFlatArray(value) || (_utils.default.isFileList(value) || _utils.default.endsWith(key, '[]')) && (arr = _utils.default.toArray(value))) {
         // eslint-disable-next-line no-param-reassign
         key = removeBrackets(key);
         arr.forEach(function each(el, index) {
-          !(_utils.default.isUndefined(el) || el === null) && formData.append( // eslint-disable-next-line no-nested-ternary
+          !(_utils.default.isUndefined(el) || el === null) && formData.append(
+          // eslint-disable-next-line no-nested-ternary
           indexes === true ? renderKey([key], index, dots) : indexes === null ? key : key + '[]', convertValue(el));
         });
         return false;
       }
     }
-
     if (isVisitable(value)) {
       return true;
     }
-
     formData.append(renderKey(path, key, dots), convertValue(value));
     return false;
   }
-
   const stack = [];
   const exposedHelpers = Object.assign(predicates, {
     defaultVisitor,
     convertValue,
     isVisitable
   });
-
   function build(value, path, depth = 0) {
     if (_utils.default.isUndefined(value)) return;
-
     if (depth > maxDepth) {
       throw new _AxiosError.default('Object is too deeply nested (' + depth + ' levels). Max depth: ' + maxDepth, _AxiosError.default.ERR_FORM_DATA_DEPTH_EXCEEDED);
     }
-
     if (stack.indexOf(value) !== -1) {
       throw Error('Circular reference detected in ' + path.join('.'));
     }
-
     stack.push(value);
-
     _utils.default.forEach(value, function each(el, key) {
       const result = !(_utils.default.isUndefined(el) || el === null) && visitor.call(formData, el, _utils.default.isString(key) ? key.trim() : key, path, exposedHelpers);
-
       if (result === true) {
         build(el, path ? path.concat(key) : [key], depth + 1);
       }
     });
-
     stack.pop();
   }
-
   if (!_utils.default.isObject(obj)) {
     throw new TypeError('data must be an object');
   }
-
   build(obj);
   return formData;
 }
-
 var _default = exports.default = toFormData;
 },{"../utils.js":"../../node_modules/axios/lib/utils.js","../core/AxiosError.js":"../../node_modules/axios/lib/core/AxiosError.js","../platform/node/classes/FormData.js":"../../node_modules/axios/lib/helpers/null.js","buffer":"../../node_modules/buffer/index.js"}],"../../node_modules/axios/lib/helpers/AxiosURLSearchParams.js":[function(require,module,exports) {
 'use strict';
@@ -6462,11 +5098,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _toFormData = _interopRequireDefault(require("./toFormData.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /**
  * It encodes a string by replacing all characters that are not in the unreserved set with
  * their percent-encoded equivalents
@@ -6488,6 +5121,7 @@ function encode(str) {
     return charMap[match];
   });
 }
+
 /**
  * It takes a params object and converts it to a FormData object
  *
@@ -6496,29 +5130,22 @@ function encode(str) {
  *
  * @returns {void}
  */
-
-
 function AxiosURLSearchParams(params, options) {
   this._pairs = [];
   params && (0, _toFormData.default)(params, this, options);
 }
-
 const prototype = AxiosURLSearchParams.prototype;
-
 prototype.append = function append(name, value) {
   this._pairs.push([name, value]);
 };
-
 prototype.toString = function toString(encoder) {
   const _encode = encoder ? function (value) {
     return encoder.call(this, value, encode);
   } : encode;
-
   return this._pairs.map(function each(pair) {
     return _encode(pair[0]) + '=' + _encode(pair[1]);
   }, '').join('&');
 };
-
 var _default = exports.default = AxiosURLSearchParams;
 },{"./toFormData.js":"../../node_modules/axios/lib/helpers/toFormData.js"}],"../../node_modules/axios/lib/helpers/buildURL.js":[function(require,module,exports) {
 'use strict';
@@ -6528,13 +5155,9 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = buildURL;
 exports.encode = encode;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _AxiosURLSearchParams = _interopRequireDefault(require("../helpers/AxiosURLSearchParams.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /**
  * It replaces URL-encoded forms of `:`, `$`, `,`, and spaces with
  * their plain counterparts (`:`, `$`, `,`, `+`).
@@ -6546,6 +5169,7 @@ function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e
 function encode(val) {
   return encodeURIComponent(val).replace(/%3A/gi, ':').replace(/%24/g, '$').replace(/%2C/gi, ',').replace(/%20/g, '+');
 }
+
 /**
  * Build a URL by appending params to the end
  *
@@ -6555,38 +5179,28 @@ function encode(val) {
  *
  * @returns {string} The formatted url
  */
-
-
 function buildURL(url, params, options) {
   if (!params) {
     return url;
   }
-
   const _encode = options && options.encode || encode;
-
   const _options = _utils.default.isFunction(options) ? {
     serialize: options
   } : options;
-
   const serializeFn = _options && _options.serialize;
   let serializedParams;
-
   if (serializeFn) {
     serializedParams = serializeFn(params, _options);
   } else {
     serializedParams = _utils.default.isURLSearchParams(params) ? params.toString() : new _AxiosURLSearchParams.default(params, _options).toString(_encode);
   }
-
   if (serializedParams) {
     const hashmarkIndex = url.indexOf('#');
-
     if (hashmarkIndex !== -1) {
       url = url.slice(0, hashmarkIndex);
     }
-
     url += (url.indexOf('?') === -1 ? '?' : '&') + serializedParams;
   }
-
   return url;
 }
 },{"../utils.js":"../../node_modules/axios/lib/utils.js","../helpers/AxiosURLSearchParams.js":"../../node_modules/axios/lib/helpers/AxiosURLSearchParams.js"}],"../../node_modules/axios/lib/core/InterceptorManager.js":[function(require,module,exports) {
@@ -6596,15 +5210,13 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 class InterceptorManager {
   constructor() {
     this.handlers = [];
   }
+
   /**
    * Add a new interceptor to the stack
    *
@@ -6614,8 +5226,6 @@ class InterceptorManager {
    *
    * @return {Number} An ID used to remove interceptor later
    */
-
-
   use(fulfilled, rejected, options) {
     this.handlers.push({
       fulfilled,
@@ -6625,6 +5235,7 @@ class InterceptorManager {
     });
     return this.handlers.length - 1;
   }
+
   /**
    * Remove an interceptor from the stack
    *
@@ -6632,25 +5243,23 @@ class InterceptorManager {
    *
    * @returns {void}
    */
-
-
   eject(id) {
     if (this.handlers[id]) {
       this.handlers[id] = null;
     }
   }
+
   /**
    * Clear all interceptors from the stack
    *
    * @returns {void}
    */
-
-
   clear() {
     if (this.handlers) {
       this.handlers = [];
     }
   }
+
   /**
    * Iterate over all the registered interceptors
    *
@@ -6661,8 +5270,6 @@ class InterceptorManager {
    *
    * @returns {void}
    */
-
-
   forEach(fn) {
     _utils.default.forEach(this.handlers, function forEachHandler(h) {
       if (h !== null) {
@@ -6670,9 +5277,7 @@ class InterceptorManager {
       }
     });
   }
-
 }
-
 var _default = exports.default = InterceptorManager;
 },{"../utils.js":"../../node_modules/axios/lib/utils.js"}],"../../node_modules/axios/lib/defaults/transitional.js":[function(require,module,exports) {
 'use strict';
@@ -6681,7 +5286,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _default = exports.default = {
   silentJSONParsing: true,
   forcedJSONParsing: true,
@@ -6695,11 +5299,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _AxiosURLSearchParams = _interopRequireDefault(require("../../../helpers/AxiosURLSearchParams.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 var _default = exports.default = typeof URLSearchParams !== 'undefined' ? URLSearchParams : _AxiosURLSearchParams.default;
 },{"../../../helpers/AxiosURLSearchParams.js":"../../node_modules/axios/lib/helpers/AxiosURLSearchParams.js"}],"../../node_modules/axios/lib/platform/browser/classes/FormData.js":[function(require,module,exports) {
 'use strict';
@@ -6708,7 +5309,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _default = exports.default = typeof FormData !== 'undefined' ? FormData : null;
 },{}],"../../node_modules/axios/lib/platform/browser/classes/Blob.js":[function(require,module,exports) {
 'use strict';
@@ -6717,7 +5317,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _default = exports.default = typeof Blob !== 'undefined' ? Blob : null;
 },{}],"../../node_modules/axios/lib/platform/browser/index.js":[function(require,module,exports) {
 "use strict";
@@ -6726,15 +5325,10 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _URLSearchParams = _interopRequireDefault(require("./classes/URLSearchParams.js"));
-
 var _FormData = _interopRequireDefault(require("./classes/FormData.js"));
-
 var _Blob = _interopRequireDefault(require("./classes/Blob.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 var _default = exports.default = {
   isBrowser: true,
   classes: {
@@ -6752,8 +5346,8 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.origin = exports.navigator = exports.hasStandardBrowserWebWorkerEnv = exports.hasStandardBrowserEnv = exports.hasBrowserEnv = void 0;
 const hasBrowserEnv = exports.hasBrowserEnv = typeof window !== 'undefined' && typeof document !== 'undefined';
-
 const _navigator = exports.navigator = typeof navigator === 'object' && navigator || undefined;
+
 /**
  * Determine if we're running in a standard browser environment
  *
@@ -6771,9 +5365,8 @@ const _navigator = exports.navigator = typeof navigator === 'object' && navigato
  *
  * @returns {boolean}
  */
-
-
 const hasStandardBrowserEnv = exports.hasStandardBrowserEnv = hasBrowserEnv && (!_navigator || ['ReactNative', 'NativeScript', 'NS'].indexOf(_navigator.product) < 0);
+
 /**
  * Determine if we're running in a standard browser webWorker environment
  *
@@ -6783,12 +5376,11 @@ const hasStandardBrowserEnv = exports.hasStandardBrowserEnv = hasBrowserEnv && (
  * `typeof window !== 'undefined' && typeof document !== 'undefined'`.
  * This leads to a problem when axios post `FormData` in webWorker
  */
-
 const hasStandardBrowserWebWorkerEnv = exports.hasStandardBrowserWebWorkerEnv = (() => {
-  return typeof WorkerGlobalScope !== 'undefined' && // eslint-disable-next-line no-undef
+  return typeof WorkerGlobalScope !== 'undefined' &&
+  // eslint-disable-next-line no-undef
   self instanceof WorkerGlobalScope && typeof self.importScripts === 'function';
 })();
-
 const origin = exports.origin = hasBrowserEnv && window.location.href || 'http://localhost';
 },{}],"../../node_modules/axios/lib/platform/index.js":[function(require,module,exports) {
 "use strict";
@@ -6797,16 +5389,12 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _index = _interopRequireDefault(require("./node/index.js"));
-
 var utils = _interopRequireWildcard(require("./common/utils.js"));
-
 function _interopRequireWildcard(e, t) { if ("function" == typeof WeakMap) var r = new WeakMap(), n = new WeakMap(); return (_interopRequireWildcard = function (e, t) { if (!t && e && e.__esModule) return e; var o, i, f = { __proto__: null, default: e }; if (null === e || "object" != typeof e && "function" != typeof e) return f; if (o = t ? n : r) { if (o.has(e)) return o.get(e); o.set(e, f); } for (const t in e) "default" !== t && {}.hasOwnProperty.call(e, t) && ((i = (o = Object.defineProperty) && Object.getOwnPropertyDescriptor(e, t)) && (i.get || i.set) ? o(f, t, i) : f[t] = e[t]); return f; })(e, t); }
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
-var _default = exports.default = { ...utils,
+var _default = exports.default = {
+  ...utils,
   ..._index.default
 };
 },{"./node/index.js":"../../node_modules/axios/lib/platform/browser/index.js","./common/utils.js":"../../node_modules/axios/lib/platform/common/utils.js"}],"../../node_modules/axios/lib/helpers/toURLEncodedForm.js":[function(require,module,exports) {
@@ -6816,15 +5404,10 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = toURLEncodedForm;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _toFormData = _interopRequireDefault(require("./toFormData.js"));
-
 var _index = _interopRequireDefault(require("../platform/index.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 function toURLEncodedForm(data, options) {
   return (0, _toFormData.default)(data, new _index.default.classes.URLSearchParams(), {
     visitor: function (value, key, path, helpers) {
@@ -6832,7 +5415,6 @@ function toURLEncodedForm(data, options) {
         this.append(key, value.toString('base64'));
         return false;
       }
-
       return helpers.defaultVisitor.apply(this, arguments);
     },
     ...options
@@ -6845,11 +5427,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /**
  * It takes a string like `foo[x][y][z]` and returns an array like `['foo', 'x', 'y', 'z']
  *
@@ -6866,6 +5445,7 @@ function parsePropPath(name) {
     return match[0] === '[]' ? '' : match[1] || match[0];
   });
 }
+
 /**
  * Convert an array to an object.
  *
@@ -6873,22 +5453,19 @@ function parsePropPath(name) {
  *
  * @returns An object with the same keys and values as the array.
  */
-
-
 function arrayToObject(arr) {
   const obj = {};
   const keys = Object.keys(arr);
   let i;
   const len = keys.length;
   let key;
-
   for (i = 0; i < len; i++) {
     key = keys[i];
     obj[key] = arr[key];
   }
-
   return obj;
 }
+
 /**
  * It takes a FormData object and returns a JavaScript object
  *
@@ -6896,8 +5473,6 @@ function arrayToObject(arr) {
  *
  * @returns {Object<string, any> | null} The converted object.
  */
-
-
 function formDataToJSON(formData) {
   function buildPath(path, value, target, index) {
     let name = path[index++];
@@ -6905,43 +5480,32 @@ function formDataToJSON(formData) {
     const isNumericKey = Number.isFinite(+name);
     const isLast = index >= path.length;
     name = !name && _utils.default.isArray(target) ? target.length : name;
-
     if (isLast) {
       if (_utils.default.hasOwnProp(target, name)) {
         target[name] = _utils.default.isArray(target[name]) ? target[name].concat(value) : [target[name], value];
       } else {
         target[name] = value;
       }
-
       return !isNumericKey;
     }
-
     if (!_utils.default.hasOwnProp(target, name) || !_utils.default.isObject(target[name])) {
       target[name] = [];
     }
-
     const result = buildPath(path, value, target[name], index);
-
     if (result && _utils.default.isArray(target[name])) {
       target[name] = arrayToObject(target[name]);
     }
-
     return !isNumericKey;
   }
-
   if (_utils.default.isFormData(formData) && _utils.default.isFunction(formData.entries)) {
     const obj = {};
-
     _utils.default.forEachEntry(formData, (name, value) => {
       buildPath(parsePropPath(name), value, obj, 0);
     });
-
     return obj;
   }
-
   return null;
 }
-
 var _default = exports.default = formDataToJSON;
 },{"../utils.js":"../../node_modules/axios/lib/utils.js"}],"../../node_modules/axios/lib/defaults/index.js":[function(require,module,exports) {
 'use strict';
@@ -6950,24 +5514,16 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _AxiosError = _interopRequireDefault(require("../core/AxiosError.js"));
-
 var _transitional = _interopRequireDefault(require("./transitional.js"));
-
 var _toFormData = _interopRequireDefault(require("../helpers/toFormData.js"));
-
 var _toURLEncodedForm = _interopRequireDefault(require("../helpers/toURLEncodedForm.js"));
-
 var _index = _interopRequireDefault(require("../platform/index.js"));
-
 var _formDataToJSON = _interopRequireDefault(require("../helpers/formDataToJSON.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 const own = (obj, key) => obj != null && _utils.default.hasOwnProp(obj, key) ? obj[key] : undefined;
+
 /**
  * It takes a string, tries to parse it, and if it fails, it returns the stringified version
  * of the input
@@ -6978,8 +5534,6 @@ const own = (obj, key) => obj != null && _utils.default.hasOwnProp(obj, key) ? o
  *
  * @returns {string} A stringified version of the rawValue.
  */
-
-
 function stringifySafely(rawValue, parser, encoder) {
   if (_utils.default.isString(rawValue)) {
     try {
@@ -6991,67 +5545,50 @@ function stringifySafely(rawValue, parser, encoder) {
       }
     }
   }
-
   return (encoder || JSON.stringify)(rawValue);
 }
-
 const defaults = {
   transitional: _transitional.default,
   adapter: ['xhr', 'http', 'fetch'],
   transformRequest: [function transformRequest(data, headers) {
     const contentType = headers.getContentType() || '';
     const hasJSONContentType = contentType.indexOf('application/json') > -1;
-
     const isObjectPayload = _utils.default.isObject(data);
-
     if (isObjectPayload && _utils.default.isHTMLForm(data)) {
       data = new FormData(data);
     }
-
     const isFormData = _utils.default.isFormData(data);
-
     if (isFormData) {
       return hasJSONContentType ? JSON.stringify((0, _formDataToJSON.default)(data)) : data;
     }
-
     if (_utils.default.isArrayBuffer(data) || _utils.default.isBuffer(data) || _utils.default.isStream(data) || _utils.default.isFile(data) || _utils.default.isBlob(data) || _utils.default.isReadableStream(data)) {
       return data;
     }
-
     if (_utils.default.isArrayBufferView(data)) {
       return data.buffer;
     }
-
     if (_utils.default.isURLSearchParams(data)) {
       headers.setContentType('application/x-www-form-urlencoded;charset=utf-8', false);
       return data.toString();
     }
-
     let isFileList;
-
     if (isObjectPayload) {
       const formSerializer = own(this, 'formSerializer');
-
       if (contentType.indexOf('application/x-www-form-urlencoded') > -1) {
         return (0, _toURLEncodedForm.default)(data, formSerializer).toString();
       }
-
       if ((isFileList = _utils.default.isFileList(data)) || contentType.indexOf('multipart/form-data') > -1) {
         const env = own(this, 'env');
-
         const _FormData = env && env.FormData;
-
         return (0, _toFormData.default)(isFileList ? {
           'files[]': data
         } : data, _FormData && new _FormData(), formSerializer);
       }
     }
-
     if (isObjectPayload || hasJSONContentType) {
       headers.setContentType('application/json', false);
       return stringifySafely(data);
     }
-
     return data;
   }],
   transformResponse: [function transformResponse(data) {
@@ -7059,15 +5596,12 @@ const defaults = {
     const forcedJSONParsing = transitional && transitional.forcedJSONParsing;
     const responseType = own(this, 'responseType');
     const JSONRequested = responseType === 'json';
-
     if (_utils.default.isResponse(data) || _utils.default.isReadableStream(data)) {
       return data;
     }
-
     if (data && _utils.default.isString(data) && (forcedJSONParsing && !responseType || JSONRequested)) {
       const silentJSONParsing = transitional && transitional.silentJSONParsing;
       const strictJSONParsing = !silentJSONParsing && JSONRequested;
-
       try {
         return JSON.parse(data, own(this, 'parseReviver'));
       } catch (e) {
@@ -7075,15 +5609,12 @@ const defaults = {
           if (e.name === 'SyntaxError') {
             throw _AxiosError.default.from(e, _AxiosError.default.ERR_BAD_RESPONSE, this, null, own(this, 'response'));
           }
-
           throw e;
         }
       }
     }
-
     return data;
   }],
-
   /**
    * A timeout in milliseconds to abort a request. If set to 0 (default) a
    * timeout is not created.
@@ -7107,11 +5638,9 @@ const defaults = {
     }
   }
 };
-
 _utils.default.forEach(['delete', 'get', 'head', 'post', 'put', 'patch', 'query'], method => {
   defaults.headers[method] = {};
 });
-
 var _default = exports.default = defaults;
 },{"../utils.js":"../../node_modules/axios/lib/utils.js","../core/AxiosError.js":"../../node_modules/axios/lib/core/AxiosError.js","./transitional.js":"../../node_modules/axios/lib/defaults/transitional.js","../helpers/toFormData.js":"../../node_modules/axios/lib/helpers/toFormData.js","../helpers/toURLEncodedForm.js":"../../node_modules/axios/lib/helpers/toURLEncodedForm.js","../platform/index.js":"../../node_modules/axios/lib/platform/index.js","../helpers/formDataToJSON.js":"../../node_modules/axios/lib/helpers/formDataToJSON.js"}],"../../node_modules/axios/lib/core/transformData.js":[function(require,module,exports) {
 'use strict';
@@ -7120,15 +5649,10 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = transformData;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _index = _interopRequireDefault(require("../defaults/index.js"));
-
 var _AxiosHeaders = _interopRequireDefault(require("../core/AxiosHeaders.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /**
  * Transform the data for a request or a response
  *
@@ -7140,15 +5664,11 @@ function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e
 function transformData(fns, response) {
   const config = this || _index.default;
   const context = response || config;
-
   const headers = _AxiosHeaders.default.from(context.headers);
-
   let data = context.data;
-
   _utils.default.forEach(fns, function transform(fn) {
     data = fn.call(config, data, headers.normalize(), response ? response.status : undefined);
   });
-
   headers.normalize();
   return data;
 }
@@ -7159,7 +5679,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = isCancel;
-
 function isCancel(value) {
   return !!(value && value.__CANCEL__);
 }
@@ -7170,11 +5689,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _AxiosError = _interopRequireDefault(require("../core/AxiosError.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 class CanceledError extends _AxiosError.default {
   /**
    * A `CanceledError` is an object that is thrown when an operation is canceled.
@@ -7190,9 +5706,7 @@ class CanceledError extends _AxiosError.default {
     this.name = 'CanceledError';
     this.__CANCEL__ = true;
   }
-
 }
-
 var _default = exports.default = CanceledError;
 },{"../core/AxiosError.js":"../../node_modules/axios/lib/core/AxiosError.js"}],"../../node_modules/axios/lib/core/settle.js":[function(require,module,exports) {
 'use strict';
@@ -7201,11 +5715,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = settle;
-
 var _AxiosError = _interopRequireDefault(require("./AxiosError.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /**
  * Resolve or reject a Promise based on response status.
  *
@@ -7217,7 +5728,6 @@ function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e
  */
 function settle(resolve, reject, response) {
   const validateStatus = response.config.validateStatus;
-
   if (!response.status || !validateStatus || validateStatus(response.status)) {
     resolve(response);
   } else {
@@ -7231,25 +5741,23 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = parseProtocol;
-
 function parseProtocol(url) {
   const match = /^([-+\w]{1,25}):(?:\/\/)?/.exec(url);
   return match && match[1] || '';
 }
 },{}],"../../node_modules/axios/lib/helpers/speedometer.js":[function(require,module,exports) {
 'use strict';
+
 /**
  * Calculate data maxRate
  * @param {Number} [samplesCount= 10]
  * @param {Number} [min= 1000]
  * @returns {Function}
  */
-
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 function speedometer(samplesCount, min) {
   samplesCount = samplesCount || 10;
   const bytes = new Array(samplesCount);
@@ -7261,36 +5769,28 @@ function speedometer(samplesCount, min) {
   return function push(chunkLength) {
     const now = Date.now();
     const startedAt = timestamps[tail];
-
     if (!firstSampleTS) {
       firstSampleTS = now;
     }
-
     bytes[head] = chunkLength;
     timestamps[head] = now;
     let i = tail;
     let bytesCount = 0;
-
     while (i !== head) {
       bytesCount += bytes[i++];
       i = i % samplesCount;
     }
-
     head = (head + 1) % samplesCount;
-
     if (head === tail) {
       tail = (tail + 1) % samplesCount;
     }
-
     if (now - firstSampleTS < min) {
       return;
     }
-
     const passed = startedAt && now - startedAt;
     return passed ? Math.round(bytesCount * 1000 / passed) : undefined;
   };
 }
-
 var _default = exports.default = speedometer;
 },{}],"../../node_modules/axios/lib/helpers/throttle.js":[function(require,module,exports) {
 "use strict";
@@ -7299,7 +5799,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 /**
  * Throttle decorator
  * @param {Function} fn
@@ -7311,28 +5810,22 @@ function throttle(fn, freq) {
   let threshold = 1000 / freq;
   let lastArgs;
   let timer;
-
   const invoke = (args, now = Date.now()) => {
     timestamp = now;
     lastArgs = null;
-
     if (timer) {
       clearTimeout(timer);
       timer = null;
     }
-
     fn(...args);
   };
-
   const throttled = (...args) => {
     const now = Date.now();
     const passed = now - timestamp;
-
     if (passed >= threshold) {
       invoke(args, now);
     } else {
       lastArgs = args;
-
       if (!timer) {
         timer = setTimeout(() => {
           timer = null;
@@ -7341,12 +5834,9 @@ function throttle(fn, freq) {
       }
     }
   };
-
   const flush = () => lastArgs && invoke(lastArgs);
-
   return [throttled, flush];
 }
-
 var _default = exports.default = throttle;
 },{}],"../../node_modules/axios/lib/helpers/progressEventReducer.js":[function(require,module,exports) {
 "use strict";
@@ -7355,32 +5845,22 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.progressEventReducer = exports.progressEventDecorator = exports.asyncDecorator = void 0;
-
 var _speedometer2 = _interopRequireDefault(require("./speedometer.js"));
-
 var _throttle = _interopRequireDefault(require("./throttle.js"));
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 const progressEventReducer = (listener, isDownloadStream, freq = 3) => {
   let bytesNotified = 0;
-
   const _speedometer = (0, _speedometer2.default)(50, 250);
-
   return (0, _throttle.default)(e => {
     if (!e || typeof e.loaded !== 'number') {
       return;
     }
-
     const rawLoaded = e.loaded;
     const total = e.lengthComputable ? e.total : undefined;
     const loaded = total != null ? Math.min(rawLoaded, total) : rawLoaded;
     const progressBytes = Math.max(0, loaded - bytesNotified);
-
     const rate = _speedometer(progressBytes);
-
     bytesNotified = Math.max(bytesNotified, loaded);
     const data = {
       loaded,
@@ -7396,9 +5876,7 @@ const progressEventReducer = (listener, isDownloadStream, freq = 3) => {
     listener(data);
   }, freq);
 };
-
 exports.progressEventReducer = progressEventReducer;
-
 const progressEventDecorator = (total, throttled) => {
   const lengthComputable = total != null;
   return [loaded => throttled[0]({
@@ -7407,11 +5885,8 @@ const progressEventDecorator = (total, throttled) => {
     loaded
   }), throttled[1]];
 };
-
 exports.progressEventDecorator = progressEventDecorator;
-
 const asyncDecorator = fn => (...args) => _utils.default.asap(() => fn(...args));
-
 exports.asyncDecorator = asyncDecorator;
 },{"./speedometer.js":"../../node_modules/axios/lib/helpers/speedometer.js","./throttle.js":"../../node_modules/axios/lib/helpers/throttle.js","../utils.js":"../../node_modules/axios/lib/utils.js"}],"../../node_modules/axios/lib/helpers/isURLSameOrigin.js":[function(require,module,exports) {
 "use strict";
@@ -7420,11 +5895,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _index = _interopRequireDefault(require("../platform/index.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 var _default = exports.default = _index.default.hasStandardBrowserEnv ? ((origin, isMSIE) => url => {
   url = new URL(url, _index.default.origin);
   return origin.protocol === url.protocol && origin.host === url.host && (isMSIE || origin.port === url.port);
@@ -7436,80 +5908,64 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _index = _interopRequireDefault(require("../platform/index.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
-var _default = exports.default = _index.default.hasStandardBrowserEnv ? // Standard browser envs support document.cookie
+var _default = exports.default = _index.default.hasStandardBrowserEnv ?
+// Standard browser envs support document.cookie
 {
   write(name, value, expires, path, domain, secure, sameSite) {
     if (typeof document === 'undefined') return;
     const cookie = [`${name}=${encodeURIComponent(value)}`];
-
     if (_utils.default.isNumber(expires)) {
       cookie.push(`expires=${new Date(expires).toUTCString()}`);
     }
-
     if (_utils.default.isString(path)) {
       cookie.push(`path=${path}`);
     }
-
     if (_utils.default.isString(domain)) {
       cookie.push(`domain=${domain}`);
     }
-
     if (secure === true) {
       cookie.push('secure');
     }
-
     if (_utils.default.isString(sameSite)) {
       cookie.push(`SameSite=${sameSite}`);
     }
-
     document.cookie = cookie.join('; ');
   },
-
   read(name) {
-    if (typeof document === 'undefined') return null; // Match name=value by splitting on the semicolon separator instead of building a
+    if (typeof document === 'undefined') return null;
+    // Match name=value by splitting on the semicolon separator instead of building a
     // RegExp from `name` — interpolating an unescaped string into a RegExp would let
     // metacharacters (e.g. `.+?` in an attacker-influenced cookie name) cause ReDoS or
     // match the wrong cookie. Browsers may serialize cookie pairs as either ";" or
     // "; ", so ignore optional whitespace before each cookie name.
-
     const cookies = document.cookie.split(';');
-
     for (let i = 0; i < cookies.length; i++) {
       const cookie = cookies[i].replace(/^\s+/, '');
       const eq = cookie.indexOf('=');
-
       if (eq !== -1 && cookie.slice(0, eq) === name) {
         return decodeURIComponent(cookie.slice(eq + 1));
       }
     }
-
     return null;
   },
-
   remove(name) {
     this.write(name, '', Date.now() - 86400000, '/');
   }
-
-} : // Non-standard browser env (web workers, react-native) lack needed support.
+} :
+// Non-standard browser env (web workers, react-native) lack needed support.
 {
   write() {},
-
   read() {
     return null;
   },
-
   remove() {}
-
 };
 },{"../utils.js":"../../node_modules/axios/lib/utils.js","../platform/index.js":"../../node_modules/axios/lib/platform/index.js"}],"../../node_modules/axios/lib/helpers/isAbsoluteURL.js":[function(require,module,exports) {
 'use strict';
+
 /**
  * Determines whether the specified URL is absolute
  *
@@ -7517,12 +5973,10 @@ var _default = exports.default = _index.default.hasStandardBrowserEnv ? // Stand
  *
  * @returns {boolean} True if the specified URL is absolute, otherwise false
  */
-
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = isAbsoluteURL;
-
 function isAbsoluteURL(url) {
   // A URL is considered absolute if it begins with "<scheme>://" or "//" (protocol-relative URL).
   // RFC 3986 defines scheme name as a sequence of characters beginning with a letter and followed
@@ -7530,11 +5984,11 @@ function isAbsoluteURL(url) {
   if (typeof url !== 'string') {
     return false;
   }
-
   return /^([a-z][a-z\d+\-.]*:)?\/\//i.test(url);
 }
 },{}],"../../node_modules/axios/lib/helpers/combineURLs.js":[function(require,module,exports) {
 'use strict';
+
 /**
  * Creates a new URL by combining the specified URLs
  *
@@ -7543,12 +5997,10 @@ function isAbsoluteURL(url) {
  *
  * @returns {string} The combined URL
  */
-
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = combineURLs;
-
 function combineURLs(baseURL, relativeURL) {
   return relativeURL ? baseURL.replace(/\/?\/$/, '') + '/' + relativeURL.replace(/^\/+/, '') : baseURL;
 }
@@ -7559,13 +6011,9 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = buildFullPath;
-
 var _isAbsoluteURL = _interopRequireDefault(require("../helpers/isAbsoluteURL.js"));
-
 var _combineURLs = _interopRequireDefault(require("../helpers/combineURLs.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /**
  * Creates a new URL by combining the baseURL with the requestedURL,
  * only when the requestedURL is not already an absolute URL.
@@ -7578,11 +6026,9 @@ function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e
  */
 function buildFullPath(baseURL, requestedURL, allowAbsoluteUrls) {
   let isRelativeUrl = !(0, _isAbsoluteURL.default)(requestedURL);
-
   if (baseURL && (isRelativeUrl || allowAbsoluteUrls === false)) {
     return (0, _combineURLs.default)(baseURL, requestedURL);
   }
-
   return requestedURL;
 }
 },{"../helpers/isAbsoluteURL.js":"../../node_modules/axios/lib/helpers/isAbsoluteURL.js","../helpers/combineURLs.js":"../../node_modules/axios/lib/helpers/combineURLs.js"}],"../../node_modules/axios/lib/core/mergeConfig.js":[function(require,module,exports) {
@@ -7592,15 +6038,13 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = mergeConfig;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _AxiosHeaders = _interopRequireDefault(require("./AxiosHeaders.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
-const headersToObject = thing => thing instanceof _AxiosHeaders.default ? { ...thing
+const headersToObject = thing => thing instanceof _AxiosHeaders.default ? {
+  ...thing
 } : thing;
+
 /**
  * Config-specific merge-function which creates a new config-object
  * by merging two configuration objects together.
@@ -7610,15 +6054,14 @@ const headersToObject = thing => thing instanceof _AxiosHeaders.default ? { ...t
  *
  * @returns {Object} New object resulting from merging config2 to config1
  */
-
-
 function mergeConfig(config1, config2) {
   // eslint-disable-next-line no-param-reassign
-  config2 = config2 || {}; // Use a null-prototype object so that downstream reads such as `config.auth`
+  config2 = config2 || {};
+
+  // Use a null-prototype object so that downstream reads such as `config.auth`
   // or `config.baseURL` cannot inherit polluted values from Object.prototype.
   // `hasOwnProperty` is restored as a non-enumerable own slot to preserve
   // ergonomics for user code that relies on it.
-
   const config = Object.create(null);
   Object.defineProperty(config, 'hasOwnProperty', {
     // Null-proto descriptor so a polluted Object.prototype.get cannot turn
@@ -7629,7 +6072,6 @@ function mergeConfig(config1, config2) {
     writable: true,
     configurable: true
   });
-
   function getMergedValue(target, source, prop, caseless) {
     if (_utils.default.isPlainObject(target) && _utils.default.isPlainObject(source)) {
       return _utils.default.merge.call({
@@ -7640,35 +6082,33 @@ function mergeConfig(config1, config2) {
     } else if (_utils.default.isArray(source)) {
       return source.slice();
     }
-
     return source;
   }
-
   function mergeDeepProperties(a, b, prop, caseless) {
     if (!_utils.default.isUndefined(b)) {
       return getMergedValue(a, b, prop, caseless);
     } else if (!_utils.default.isUndefined(a)) {
       return getMergedValue(undefined, a, prop, caseless);
     }
-  } // eslint-disable-next-line consistent-return
+  }
 
-
+  // eslint-disable-next-line consistent-return
   function valueFromConfig2(a, b) {
     if (!_utils.default.isUndefined(b)) {
       return getMergedValue(undefined, b);
     }
-  } // eslint-disable-next-line consistent-return
+  }
 
-
+  // eslint-disable-next-line consistent-return
   function defaultToConfig2(a, b) {
     if (!_utils.default.isUndefined(b)) {
       return getMergedValue(undefined, b);
     } else if (!_utils.default.isUndefined(a)) {
       return getMergedValue(undefined, a);
     }
-  } // eslint-disable-next-line consistent-return
+  }
 
-
+  // eslint-disable-next-line consistent-return
   function mergeDirectKeys(a, b, prop) {
     if (_utils.default.hasOwnProp(config2, prop)) {
       return getMergedValue(a, b);
@@ -7676,7 +6116,6 @@ function mergeConfig(config1, config2) {
       return getMergedValue(undefined, a);
     }
   }
-
   const mergeMap = {
     url: valueFromConfig2,
     method: valueFromConfig2,
@@ -7709,8 +6148,8 @@ function mergeConfig(config1, config2) {
     validateStatus: mergeDirectKeys,
     headers: (a, b, prop) => mergeDeepProperties(headersToObject(a), headersToObject(b), prop, true)
   };
-
-  _utils.default.forEach(Object.keys({ ...config1,
+  _utils.default.forEach(Object.keys({
+    ...config1,
     ...config2
   }), function computeConfigValue(prop) {
     if (prop === '__proto__' || prop === 'constructor' || prop === 'prototype') return;
@@ -7720,7 +6159,6 @@ function mergeConfig(config1, config2) {
     const configValue = merge(a, b, prop);
     _utils.default.isUndefined(configValue) && merge !== mergeDirectKeys || (config[prop] = configValue);
   });
-
   return config;
 }
 },{"../utils.js":"../../node_modules/axios/lib/utils.js","./AxiosHeaders.js":"../../node_modules/axios/lib/core/AxiosHeaders.js"}],"../../node_modules/axios/lib/helpers/resolveConfig.js":[function(require,module,exports) {
@@ -7730,39 +6168,28 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _index = _interopRequireDefault(require("../platform/index.js"));
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _isURLSameOrigin = _interopRequireDefault(require("./isURLSameOrigin.js"));
-
 var _cookies = _interopRequireDefault(require("./cookies.js"));
-
 var _buildFullPath = _interopRequireDefault(require("../core/buildFullPath.js"));
-
 var _mergeConfig = _interopRequireDefault(require("../core/mergeConfig.js"));
-
 var _AxiosHeaders = _interopRequireDefault(require("../core/AxiosHeaders.js"));
-
 var _buildURL = _interopRequireDefault(require("./buildURL.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 const FORM_DATA_CONTENT_HEADERS = ['content-type', 'content-length'];
-
 function setFormDataHeaders(headers, formHeaders, policy) {
   if (policy !== 'content-only') {
     headers.set(formHeaders);
     return;
   }
-
   Object.entries(formHeaders).forEach(([key, val]) => {
     if (FORM_DATA_CONTENT_HEADERS.includes(key.toLowerCase())) {
       headers.set(key, val);
     }
   });
 }
+
 /**
  * Encode a UTF-8 string to a Latin-1 byte string for use with btoa().
  * This is a modern replacement for the deprecated unescape(encodeURIComponent(str)) pattern.
@@ -7771,16 +6198,13 @@ function setFormDataHeaders(headers, formHeaders, policy) {
  *
  * @returns {string} UTF-8 bytes as a Latin-1 string
  */
-
-
 const encodeUTF8 = str => encodeURIComponent(str).replace(/%([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
-
 var _default = config => {
-  const newConfig = (0, _mergeConfig.default)({}, config); // Read only own properties to prevent prototype pollution gadgets
+  const newConfig = (0, _mergeConfig.default)({}, config);
+
+  // Read only own properties to prevent prototype pollution gadgets
   // (e.g. Object.prototype.baseURL = 'https://evil.com').
-
   const own = key => _utils.default.hasOwnProp(newConfig, key) ? newConfig[key] : undefined;
-
   const data = own('data');
   let withXSRFToken = own('withXSRFToken');
   const xsrfHeaderName = own('xsrfHeaderName');
@@ -7791,12 +6215,12 @@ var _default = config => {
   const allowAbsoluteUrls = own('allowAbsoluteUrls');
   const url = own('url');
   newConfig.headers = headers = _AxiosHeaders.default.from(headers);
-  newConfig.url = (0, _buildURL.default)((0, _buildFullPath.default)(baseURL, url, allowAbsoluteUrls), config.params, config.paramsSerializer); // HTTP basic authentication
+  newConfig.url = (0, _buildURL.default)((0, _buildFullPath.default)(baseURL, url, allowAbsoluteUrls), config.params, config.paramsSerializer);
 
+  // HTTP basic authentication
   if (auth) {
     headers.set('Authorization', 'Basic ' + btoa((auth.username || '') + ':' + (auth.password ? encodeUTF8(auth.password) : '')));
   }
-
   if (_utils.default.isFormData(data)) {
     if (_index.default.hasStandardBrowserEnv || _index.default.hasStandardBrowserWebWorkerEnv) {
       headers.setContentType(undefined); // browser handles it
@@ -7804,33 +6228,30 @@ var _default = config => {
       // Node.js FormData (like form-data package)
       setFormDataHeaders(headers, data.getHeaders(), own('formDataHeaderPolicy'));
     }
-  } // Add xsrf header
+  }
+
+  // Add xsrf header
   // This is only done if running in a standard browser environment.
   // Specifically not if we're in a web worker, or react-native.
-
 
   if (_index.default.hasStandardBrowserEnv) {
     if (_utils.default.isFunction(withXSRFToken)) {
       withXSRFToken = withXSRFToken(newConfig);
-    } // Strict boolean check — prevents proto-pollution gadgets (e.g. Object.prototype.withXSRFToken = 1)
+    }
+
+    // Strict boolean check — prevents proto-pollution gadgets (e.g. Object.prototype.withXSRFToken = 1)
     // and misconfigurations (e.g. "false") from short-circuiting the same-origin check and leaking
     // the XSRF token cross-origin.
-
-
     const shouldSendXSRF = withXSRFToken === true || withXSRFToken == null && (0, _isURLSameOrigin.default)(newConfig.url);
-
     if (shouldSendXSRF) {
       const xsrfValue = xsrfHeaderName && xsrfCookieName && _cookies.default.read(xsrfCookieName);
-
       if (xsrfValue) {
         headers.set(xsrfHeaderName, xsrfValue);
       }
     }
   }
-
   return newConfig;
 };
-
 exports.default = _default;
 },{"../platform/index.js":"../../node_modules/axios/lib/platform/index.js","../utils.js":"../../node_modules/axios/lib/utils.js","./isURLSameOrigin.js":"../../node_modules/axios/lib/helpers/isURLSameOrigin.js","./cookies.js":"../../node_modules/axios/lib/helpers/cookies.js","../core/buildFullPath.js":"../../node_modules/axios/lib/core/buildFullPath.js","../core/mergeConfig.js":"../../node_modules/axios/lib/core/mergeConfig.js","../core/AxiosHeaders.js":"../../node_modules/axios/lib/core/AxiosHeaders.js","./buildURL.js":"../../node_modules/axios/lib/helpers/buildURL.js"}],"../../node_modules/axios/lib/adapters/xhr.js":[function(require,module,exports) {
 "use strict";
@@ -7839,41 +6260,24 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _settle = _interopRequireDefault(require("../core/settle.js"));
-
 var _transitional = _interopRequireDefault(require("../defaults/transitional.js"));
-
 var _AxiosError = _interopRequireDefault(require("../core/AxiosError.js"));
-
 var _CanceledError = _interopRequireDefault(require("../cancel/CanceledError.js"));
-
 var _parseProtocol = _interopRequireDefault(require("../helpers/parseProtocol.js"));
-
 var _index = _interopRequireDefault(require("../platform/index.js"));
-
 var _AxiosHeaders = _interopRequireDefault(require("../core/AxiosHeaders.js"));
-
 var _progressEventReducer = require("../helpers/progressEventReducer.js");
-
 var _resolveConfig = _interopRequireDefault(require("../helpers/resolveConfig.js"));
-
 var _sanitizeHeaderValue = require("../helpers/sanitizeHeaderValue.js");
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 const isXHRAdapterSupported = typeof XMLHttpRequest !== 'undefined';
-
 var _default = exports.default = isXHRAdapterSupported && function (config) {
   return new Promise(function dispatchXhrRequest(resolve, reject) {
     const _config = (0, _resolveConfig.default)(config);
-
     let requestData = _config.data;
-
     const requestHeaders = _AxiosHeaders.default.from(_config.headers).normalize();
-
     let {
       responseType,
       onUploadProgress,
@@ -7882,29 +6286,24 @@ var _default = exports.default = isXHRAdapterSupported && function (config) {
     let onCanceled;
     let uploadThrottled, downloadThrottled;
     let flushUpload, flushDownload;
-
     function done() {
       flushUpload && flushUpload(); // flush events
-
       flushDownload && flushDownload(); // flush events
 
       _config.cancelToken && _config.cancelToken.unsubscribe(onCanceled);
       _config.signal && _config.signal.removeEventListener('abort', onCanceled);
     }
-
     let request = new XMLHttpRequest();
-    request.open(_config.method.toUpperCase(), _config.url, true); // Set the request timeout in MS
+    request.open(_config.method.toUpperCase(), _config.url, true);
 
+    // Set the request timeout in MS
     request.timeout = _config.timeout;
-
     function onloadend() {
       if (!request) {
         return;
-      } // Prepare the response
-
-
+      }
+      // Prepare the response
       const responseHeaders = _AxiosHeaders.default.from('getAllResponseHeaders' in request && request.getAllResponseHeaders());
-
       const responseData = !responseType || responseType === 'text' || responseType === 'json' ? request.responseText : request.response;
       const response = {
         data: responseData,
@@ -7920,11 +6319,11 @@ var _default = exports.default = isXHRAdapterSupported && function (config) {
       }, function _reject(err) {
         reject(err);
         done();
-      }, response); // Clean up request
+      }, response);
 
+      // Clean up request
       request = null;
     }
-
     if ('onloadend' in request) {
       // Use onloadend if available
       request.onloadend = onloadend;
@@ -7933,95 +6332,93 @@ var _default = exports.default = isXHRAdapterSupported && function (config) {
       request.onreadystatechange = function handleLoad() {
         if (!request || request.readyState !== 4) {
           return;
-        } // The request errored out and we didn't get a response, this will be
+        }
+
+        // The request errored out and we didn't get a response, this will be
         // handled by onerror instead
         // With one exception: request that using file: protocol, most browsers
         // will return status as 0 even though it's a successful request
-
-
         if (request.status === 0 && !(request.responseURL && request.responseURL.startsWith('file:'))) {
           return;
-        } // readystate handler is calling before onerror or ontimeout handlers,
+        }
+        // readystate handler is calling before onerror or ontimeout handlers,
         // so we should call onloadend on the next 'tick'
-
-
         setTimeout(onloadend);
       };
-    } // Handle browser request cancellation (as opposed to a manual cancellation)
+    }
 
-
+    // Handle browser request cancellation (as opposed to a manual cancellation)
     request.onabort = function handleAbort() {
       if (!request) {
         return;
       }
-
       reject(new _AxiosError.default('Request aborted', _AxiosError.default.ECONNABORTED, config, request));
-      done(); // Clean up request
+      done();
 
+      // Clean up request
       request = null;
-    }; // Handle low level network errors
+    };
 
-
+    // Handle low level network errors
     request.onerror = function handleError(event) {
       // Browsers deliver a ProgressEvent in XHR onerror
       // (message may be empty; when present, surface it)
       // See https://developer.mozilla.org/docs/Web/API/XMLHttpRequest/error_event
       const msg = event && event.message ? event.message : 'Network Error';
-      const err = new _AxiosError.default(msg, _AxiosError.default.ERR_NETWORK, config, request); // attach the underlying event for consumers who want details
-
+      const err = new _AxiosError.default(msg, _AxiosError.default.ERR_NETWORK, config, request);
+      // attach the underlying event for consumers who want details
       err.event = event || null;
       reject(err);
       done();
       request = null;
-    }; // Handle timeout
+    };
 
-
+    // Handle timeout
     request.ontimeout = function handleTimeout() {
       let timeoutErrorMessage = _config.timeout ? 'timeout of ' + _config.timeout + 'ms exceeded' : 'timeout exceeded';
       const transitional = _config.transitional || _transitional.default;
-
       if (_config.timeoutErrorMessage) {
         timeoutErrorMessage = _config.timeoutErrorMessage;
       }
-
       reject(new _AxiosError.default(timeoutErrorMessage, transitional.clarifyTimeoutError ? _AxiosError.default.ETIMEDOUT : _AxiosError.default.ECONNABORTED, config, request));
-      done(); // Clean up request
+      done();
 
+      // Clean up request
       request = null;
-    }; // Remove Content-Type if data is undefined
+    };
 
+    // Remove Content-Type if data is undefined
+    requestData === undefined && requestHeaders.setContentType(null);
 
-    requestData === undefined && requestHeaders.setContentType(null); // Add headers to the request
-
+    // Add headers to the request
     if ('setRequestHeader' in request) {
       _utils.default.forEach((0, _sanitizeHeaderValue.toByteStringHeaderObject)(requestHeaders), function setRequestHeader(val, key) {
         request.setRequestHeader(key, val);
       });
-    } // Add withCredentials to request if needed
+    }
 
-
+    // Add withCredentials to request if needed
     if (!_utils.default.isUndefined(_config.withCredentials)) {
       request.withCredentials = !!_config.withCredentials;
-    } // Add responseType to request if needed
+    }
 
-
+    // Add responseType to request if needed
     if (responseType && responseType !== 'json') {
       request.responseType = _config.responseType;
-    } // Handle progress if needed
+    }
 
-
+    // Handle progress if needed
     if (onDownloadProgress) {
       [downloadThrottled, flushDownload] = (0, _progressEventReducer.progressEventReducer)(onDownloadProgress, true);
       request.addEventListener('progress', downloadThrottled);
-    } // Not all browsers support upload events
+    }
 
-
+    // Not all browsers support upload events
     if (onUploadProgress && request.upload) {
       [uploadThrottled, flushUpload] = (0, _progressEventReducer.progressEventReducer)(onUploadProgress);
       request.upload.addEventListener('progress', uploadThrottled);
       request.upload.addEventListener('loadend', flushUpload);
     }
-
     if (_config.cancelToken || _config.signal) {
       // Handle cancellation
       // eslint-disable-next-line func-names
@@ -8029,28 +6426,23 @@ var _default = exports.default = isXHRAdapterSupported && function (config) {
         if (!request) {
           return;
         }
-
         reject(!cancel || cancel.type ? new _CanceledError.default(null, config, request) : cancel);
         request.abort();
         done();
         request = null;
       };
-
       _config.cancelToken && _config.cancelToken.subscribe(onCanceled);
-
       if (_config.signal) {
         _config.signal.aborted ? onCanceled() : _config.signal.addEventListener('abort', onCanceled);
       }
     }
-
     const protocol = (0, _parseProtocol.default)(_config.url);
-
     if (protocol && !_index.default.protocols.includes(protocol)) {
       reject(new _AxiosError.default('Unsupported protocol ' + protocol + ':', _AxiosError.default.ERR_BAD_REQUEST, config));
       return;
-    } // Send the request
+    }
 
-
+    // Send the request
     request.send(requestData || null);
   });
 };
@@ -8061,25 +6453,17 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _CanceledError = _interopRequireDefault(require("../cancel/CanceledError.js"));
-
 var _AxiosError = _interopRequireDefault(require("../core/AxiosError.js"));
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 const composeSignals = (signals, timeout) => {
   signals = signals ? signals.filter(Boolean) : [];
-
   if (!timeout && !signals.length) {
     return;
   }
-
   const controller = new AbortController();
   let aborted = false;
-
   const onabort = function (reason) {
     if (!aborted) {
       aborted = true;
@@ -8088,17 +6472,14 @@ const composeSignals = (signals, timeout) => {
       controller.abort(err instanceof _AxiosError.default ? err : new _CanceledError.default(err instanceof Error ? err.message : err));
     }
   };
-
   let timer = timeout && setTimeout(() => {
     timer = null;
     onabort(new _AxiosError.default(`timeout of ${timeout}ms exceeded`, _AxiosError.default.ETIMEDOUT));
   }, timeout);
-
   const unsubscribe = () => {
     if (!signals) {
       return;
     }
-
     timer && clearTimeout(timer);
     timer = null;
     signals.forEach(signal => {
@@ -8106,17 +6487,13 @@ const composeSignals = (signals, timeout) => {
     });
     signals = null;
   };
-
   signals.forEach(signal => signal.addEventListener('abort', onabort));
   const {
     signal
   } = controller;
-
   signal.unsubscribe = () => _utils.default.asap(unsubscribe);
-
   return signal;
 };
-
 var _default = exports.default = composeSignals;
 },{"../cancel/CanceledError.js":"../../node_modules/axios/lib/cancel/CanceledError.js","../core/AxiosError.js":"../../node_modules/axios/lib/core/AxiosError.js","../utils.js":"../../node_modules/axios/lib/utils.js"}],"../../node_modules/axios/lib/helpers/trackStream.js":[function(require,module,exports) {
 "use strict";
@@ -8125,73 +6502,58 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.trackStream = exports.streamChunk = exports.readBytes = void 0;
-
 const streamChunk = function* (chunk, chunkSize) {
   let len = chunk.byteLength;
-
   if (!chunkSize || len < chunkSize) {
     yield chunk;
     return;
   }
-
   let pos = 0;
   let end;
-
   while (pos < len) {
     end = pos + chunkSize;
     yield chunk.slice(pos, end);
     pos = end;
   }
 };
-
 exports.streamChunk = streamChunk;
-
 const readBytes = async function* (iterable, chunkSize) {
   for await (const chunk of readStream(iterable)) {
     yield* streamChunk(chunk, chunkSize);
   }
 };
-
 exports.readBytes = readBytes;
-
 const readStream = async function* (stream) {
   if (stream[Symbol.asyncIterator]) {
     yield* stream;
     return;
   }
-
   const reader = stream.getReader();
-
   try {
     for (;;) {
       const {
         done,
         value
       } = await reader.read();
-
       if (done) {
         break;
       }
-
       yield value;
     }
   } finally {
     await reader.cancel();
   }
 };
-
 const trackStream = (stream, chunkSize, onProgress, onFinish) => {
   const iterator = readBytes(stream, chunkSize);
   let bytes = 0;
   let done;
-
   let _onFinish = e => {
     if (!done) {
       done = true;
       onFinish && onFinish(e);
     }
   };
-
   return new ReadableStream({
     async pull(controller) {
       try {
@@ -8199,40 +6561,30 @@ const trackStream = (stream, chunkSize, onProgress, onFinish) => {
           done,
           value
         } = await iterator.next();
-
         if (done) {
           _onFinish();
-
           controller.close();
           return;
         }
-
         let len = value.byteLength;
-
         if (onProgress) {
           let loadedBytes = bytes += len;
           onProgress(loadedBytes);
         }
-
         controller.enqueue(new Uint8Array(value));
       } catch (err) {
         _onFinish(err);
-
         throw err;
       }
     },
-
     cancel(reason) {
       _onFinish(reason);
-
       return iterator.return();
     }
-
   }, {
     highWaterMark: 2
   });
 };
-
 exports.trackStream = trackStream;
 },{}],"../../node_modules/axios/lib/helpers/estimateDataURLDecodedBytes.js":[function(require,module,exports) {
 var Buffer = require("buffer").Buffer;
@@ -8242,7 +6594,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = estimateDataURLDecodedBytes;
-
 /**
  * Estimate decoded byte length of a data:// URL *without* allocating large buffers.
  * - For base64: compute exact decoded size using length and padding;
@@ -8260,81 +6611,66 @@ function estimateDataURLDecodedBytes(url) {
   const meta = url.slice(5, comma);
   const body = url.slice(comma + 1);
   const isBase64 = /;base64/i.test(meta);
-
   if (isBase64) {
     let effectiveLen = body.length;
     const len = body.length; // cache length
 
     for (let i = 0; i < len; i++) {
-      if (body.charCodeAt(i) === 37
-      /* '%' */
-      && i + 2 < len) {
+      if (body.charCodeAt(i) === 37 /* '%' */ && i + 2 < len) {
         const a = body.charCodeAt(i + 1);
         const b = body.charCodeAt(i + 2);
         const isHex = (a >= 48 && a <= 57 || a >= 65 && a <= 70 || a >= 97 && a <= 102) && (b >= 48 && b <= 57 || b >= 65 && b <= 70 || b >= 97 && b <= 102);
-
         if (isHex) {
           effectiveLen -= 2;
           i += 2;
         }
       }
     }
-
     let pad = 0;
     let idx = len - 1;
-
-    const tailIsPct3D = j => j >= 2 && body.charCodeAt(j - 2) === 37 && // '%'
-    body.charCodeAt(j - 1) === 51 && ( // '3'
+    const tailIsPct3D = j => j >= 2 && body.charCodeAt(j - 2) === 37 &&
+    // '%'
+    body.charCodeAt(j - 1) === 51 && (
+    // '3'
     body.charCodeAt(j) === 68 || body.charCodeAt(j) === 100); // 'D' or 'd'
 
-
     if (idx >= 0) {
-      if (body.charCodeAt(idx) === 61
-      /* '=' */
-      ) {
-          pad++;
-          idx--;
-        } else if (tailIsPct3D(idx)) {
+      if (body.charCodeAt(idx) === 61 /* '=' */) {
+        pad++;
+        idx--;
+      } else if (tailIsPct3D(idx)) {
         pad++;
         idx -= 3;
       }
     }
-
     if (pad === 1 && idx >= 0) {
-      if (body.charCodeAt(idx) === 61
-      /* '=' */
-      ) {
-          pad++;
-        } else if (tailIsPct3D(idx)) {
+      if (body.charCodeAt(idx) === 61 /* '=' */) {
+        pad++;
+      } else if (tailIsPct3D(idx)) {
         pad++;
       }
     }
-
     const groups = Math.floor(effectiveLen / 4);
     const bytes = groups * 3 - (pad || 0);
     return bytes > 0 ? bytes : 0;
   }
-
   if (typeof Buffer !== 'undefined' && typeof Buffer.byteLength === 'function') {
     return Buffer.byteLength(body, 'utf8');
-  } // Compute UTF-8 byte length directly from UTF-16 code units without allocating
+  }
+
+  // Compute UTF-8 byte length directly from UTF-16 code units without allocating
   // a byte buffer (TextEncoder.encode would defeat the DoS guard on large bodies).
   // Using body.length here would undercount non-ASCII (e.g. '€' is 1 code unit
   // but 3 UTF-8 bytes).
-
-
   let bytes = 0;
-
   for (let i = 0, len = body.length; i < len; i++) {
     const c = body.charCodeAt(i);
-
     if (c < 0x80) {
       bytes += 1;
     } else if (c < 0x800) {
       bytes += 2;
     } else if (c >= 0xd800 && c <= 0xdbff && i + 1 < len) {
       const next = body.charCodeAt(i + 1);
-
       if (next >= 0xdc00 && next <= 0xdfff) {
         bytes += 4;
         i++;
@@ -8345,7 +6681,6 @@ function estimateDataURLDecodedBytes(url) {
       bytes += 3;
     }
   }
-
   return bytes;
 }
 },{"buffer":"../../node_modules/buffer/index.js"}],"../../node_modules/axios/lib/env/data.js":[function(require,module,exports) {
@@ -8363,38 +6698,23 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.getFetch = exports.default = void 0;
-
 var _index = _interopRequireDefault(require("../platform/index.js"));
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _AxiosError = _interopRequireDefault(require("../core/AxiosError.js"));
-
 var _composeSignals = _interopRequireDefault(require("../helpers/composeSignals.js"));
-
 var _trackStream = require("../helpers/trackStream.js");
-
 var _AxiosHeaders = _interopRequireDefault(require("../core/AxiosHeaders.js"));
-
 var _progressEventReducer = require("../helpers/progressEventReducer.js");
-
 var _resolveConfig = _interopRequireDefault(require("../helpers/resolveConfig.js"));
-
 var _settle = _interopRequireDefault(require("../core/settle.js"));
-
 var _estimateDataURLDecodedBytes = _interopRequireDefault(require("../helpers/estimateDataURLDecodedBytes.js"));
-
 var _data = require("../env/data.js");
-
 var _sanitizeHeaderValue = require("../helpers/sanitizeHeaderValue.js");
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 const DEFAULT_CHUNK_SIZE = 64 * 1024;
 const {
   isFunction
 } = _utils.default;
-
 const test = (fn, ...args) => {
   try {
     return !!fn(...args);
@@ -8402,7 +6722,6 @@ const test = (fn, ...args) => {
     return false;
   }
 };
-
 const factory = env => {
   const globalObject = _utils.default.global !== undefined && _utils.default.global !== null ? _utils.default.global : globalThis;
   const {
@@ -8423,31 +6742,25 @@ const factory = env => {
   const isFetchSupported = envFetch ? isFunction(envFetch) : typeof fetch === 'function';
   const isRequestSupported = isFunction(Request);
   const isResponseSupported = isFunction(Response);
-
   if (!isFetchSupported) {
     return false;
   }
-
   const isReadableStreamSupported = isFetchSupported && isFunction(ReadableStream);
-  const encodeText = isFetchSupported && (typeof TextEncoder === 'function' ? (encoder => str => encoder.encode(str))(new TextEncoder()) : async str => new Uint8Array((await new Request(str).arrayBuffer())));
+  const encodeText = isFetchSupported && (typeof TextEncoder === 'function' ? (encoder => str => encoder.encode(str))(new TextEncoder()) : async str => new Uint8Array(await new Request(str).arrayBuffer()));
   const supportsRequestStream = isRequestSupported && isReadableStreamSupported && test(() => {
     let duplexAccessed = false;
     const request = new Request(_index.default.origin, {
       body: new ReadableStream(),
       method: 'POST',
-
       get duplex() {
         duplexAccessed = true;
         return 'half';
       }
-
     });
     const hasContentType = request.headers.has('Content-Type');
-
     if (request.body != null) {
       request.body.cancel();
     }
-
     return duplexAccessed && !hasContentType;
   });
   const supportsResponseStream = isResponseSupported && isReadableStreamSupported && test(() => _utils.default.isReadableStream(new Response('').body));
@@ -8458,53 +6771,41 @@ const factory = env => {
     ['text', 'arrayBuffer', 'blob', 'formData', 'stream'].forEach(type => {
       !resolvers[type] && (resolvers[type] = (res, config) => {
         let method = res && res[type];
-
         if (method) {
           return method.call(res);
         }
-
         throw new _AxiosError.default(`Response type '${type}' is not supported`, _AxiosError.default.ERR_NOT_SUPPORT, config);
       });
     });
   })();
-
   const getBodyLength = async body => {
     if (body == null) {
       return 0;
     }
-
     if (_utils.default.isBlob(body)) {
       return body.size;
     }
-
     if (_utils.default.isSpecCompliantForm(body)) {
       const _request = new Request(_index.default.origin, {
         method: 'POST',
         body
       });
-
       return (await _request.arrayBuffer()).byteLength;
     }
-
     if (_utils.default.isArrayBufferView(body) || _utils.default.isArrayBuffer(body)) {
       return body.byteLength;
     }
-
     if (_utils.default.isURLSearchParams(body)) {
       body = body + '';
     }
-
     if (_utils.default.isString(body)) {
       return (await encodeText(body)).byteLength;
     }
   };
-
   const resolveBodyLength = async (headers, body) => {
     const length = _utils.default.toFiniteNumber(headers.getContentLength());
-
     return length == null ? getBodyLength(body) : length;
   };
-
   return async config => {
     let {
       url,
@@ -8524,82 +6825,71 @@ const factory = env => {
     } = (0, _resolveConfig.default)(config);
     const hasMaxContentLength = _utils.default.isNumber(maxContentLength) && maxContentLength > -1;
     const hasMaxBodyLength = _utils.default.isNumber(maxBodyLength) && maxBodyLength > -1;
-
     let _fetch = envFetch || fetch;
-
     responseType = responseType ? (responseType + '').toLowerCase() : 'text';
     let composedSignal = (0, _composeSignals.default)([signal, cancelToken && cancelToken.toAbortSignal()], timeout);
     let request = null;
-
     const unsubscribe = composedSignal && composedSignal.unsubscribe && (() => {
       composedSignal.unsubscribe();
     });
-
     let requestContentLength;
-
     try {
       // Enforce maxContentLength for data: URLs up-front so we never materialize
       // an oversized payload. The HTTP adapter applies the same check (see http.js
       // "if (protocol === 'data:')" branch).
       if (hasMaxContentLength && typeof url === 'string' && url.startsWith('data:')) {
         const estimated = (0, _estimateDataURLDecodedBytes.default)(url);
-
         if (estimated > maxContentLength) {
           throw new _AxiosError.default('maxContentLength size of ' + maxContentLength + ' exceeded', _AxiosError.default.ERR_BAD_RESPONSE, config, request);
         }
-      } // Enforce maxBodyLength against the outbound request body before dispatch.
+      }
+
+      // Enforce maxBodyLength against the outbound request body before dispatch.
       // Mirrors http.js behavior (ERR_BAD_REQUEST / 'Request body larger than
       // maxBodyLength limit'). Skip when the body length cannot be determined
       // (e.g. a live ReadableStream supplied by the caller).
-
-
       if (hasMaxBodyLength && method !== 'get' && method !== 'head') {
         const outboundLength = await resolveBodyLength(headers, data);
-
         if (typeof outboundLength === 'number' && isFinite(outboundLength) && outboundLength > maxBodyLength) {
           throw new _AxiosError.default('Request body larger than maxBodyLength limit', _AxiosError.default.ERR_BAD_REQUEST, config, request);
         }
       }
-
       if (onUploadProgress && supportsRequestStream && method !== 'get' && method !== 'head' && (requestContentLength = await resolveBodyLength(headers, data)) !== 0) {
         let _request = new Request(url, {
           method: 'POST',
           body: data,
           duplex: 'half'
         });
-
         let contentTypeHeader;
-
         if (_utils.default.isFormData(data) && (contentTypeHeader = _request.headers.get('content-type'))) {
           headers.setContentType(contentTypeHeader);
         }
-
         if (_request.body) {
           const [onProgress, flush] = (0, _progressEventReducer.progressEventDecorator)(requestContentLength, (0, _progressEventReducer.progressEventReducer)((0, _progressEventReducer.asyncDecorator)(onUploadProgress)));
           data = (0, _trackStream.trackStream)(_request.body, DEFAULT_CHUNK_SIZE, onProgress, flush);
         }
       }
-
       if (!_utils.default.isString(withCredentials)) {
         withCredentials = withCredentials ? 'include' : 'omit';
-      } // Cloudflare Workers throws when credentials are defined
+      }
+
+      // Cloudflare Workers throws when credentials are defined
       // see https://github.com/cloudflare/workerd/issues/902
+      const isCredentialsSupported = isRequestSupported && 'credentials' in Request.prototype;
 
-
-      const isCredentialsSupported = isRequestSupported && 'credentials' in Request.prototype; // If data is FormData and Content-Type is multipart/form-data without boundary,
+      // If data is FormData and Content-Type is multipart/form-data without boundary,
       // delete it so fetch can set it correctly with the boundary
-
       if (_utils.default.isFormData(data)) {
         const contentType = headers.getContentType();
-
         if (contentType && /^multipart\/form-data/i.test(contentType) && !/boundary=/i.test(contentType)) {
           headers.delete('content-type');
         }
-      } // Set User-Agent header if not already set (fetch defaults to 'node' in Node.js)
+      }
 
-
+      // Set User-Agent header if not already set (fetch defaults to 'node' in Node.js)
       headers.set('User-Agent', 'axios/' + _data.VERSION, false);
-      const resolvedOptions = { ...fetchOptions,
+      const resolvedOptions = {
+        ...fetchOptions,
         signal: composedSignal,
         method: method.toUpperCase(),
         headers: (0, _sanitizeHeaderValue.toByteStringHeaderObject)(headers.normalize()),
@@ -8608,56 +6898,47 @@ const factory = env => {
         credentials: isCredentialsSupported ? withCredentials : undefined
       };
       request = isRequestSupported && new Request(url, resolvedOptions);
-      let response = await (isRequestSupported ? _fetch(request, fetchOptions) : _fetch(url, resolvedOptions)); // Cheap pre-check: if the server honestly declares a content-length that
-      // already exceeds the cap, reject before we start streaming.
+      let response = await (isRequestSupported ? _fetch(request, fetchOptions) : _fetch(url, resolvedOptions));
 
+      // Cheap pre-check: if the server honestly declares a content-length that
+      // already exceeds the cap, reject before we start streaming.
       if (hasMaxContentLength) {
         const declaredLength = _utils.default.toFiniteNumber(response.headers.get('content-length'));
-
         if (declaredLength != null && declaredLength > maxContentLength) {
           throw new _AxiosError.default('maxContentLength size of ' + maxContentLength + ' exceeded', _AxiosError.default.ERR_BAD_RESPONSE, config, request);
         }
       }
-
       const isStreamResponse = supportsResponseStream && (responseType === 'stream' || responseType === 'response');
-
       if (supportsResponseStream && response.body && (onDownloadProgress || hasMaxContentLength || isStreamResponse && unsubscribe)) {
         const options = {};
         ['status', 'statusText', 'headers'].forEach(prop => {
           options[prop] = response[prop];
         });
-
         const responseContentLength = _utils.default.toFiniteNumber(response.headers.get('content-length'));
-
         const [onProgress, flush] = onDownloadProgress && (0, _progressEventReducer.progressEventDecorator)(responseContentLength, (0, _progressEventReducer.progressEventReducer)((0, _progressEventReducer.asyncDecorator)(onDownloadProgress), true)) || [];
         let bytesRead = 0;
-
         const onChunkProgress = loadedBytes => {
           if (hasMaxContentLength) {
             bytesRead = loadedBytes;
-
             if (bytesRead > maxContentLength) {
               throw new _AxiosError.default('maxContentLength size of ' + maxContentLength + ' exceeded', _AxiosError.default.ERR_BAD_RESPONSE, config, request);
             }
           }
-
           onProgress && onProgress(loadedBytes);
         };
-
         response = new Response((0, _trackStream.trackStream)(response.body, DEFAULT_CHUNK_SIZE, onChunkProgress, () => {
           flush && flush();
           unsubscribe && unsubscribe();
         }), options);
       }
-
       responseType = responseType || 'text';
-      let responseData = await resolvers[_utils.default.findKey(resolvers, responseType) || 'text'](response, config); // Fallback enforcement for environments without ReadableStream support
+      let responseData = await resolvers[_utils.default.findKey(resolvers, responseType) || 'text'](response, config);
+
+      // Fallback enforcement for environments without ReadableStream support
       // (legacy runtimes). Detect materialized size from typed output; skip
       // streams/Response passthrough since the user will read those themselves.
-
       if (hasMaxContentLength && !supportsResponseStream && !isStreamResponse) {
         let materializedSize;
-
         if (responseData != null) {
           if (typeof responseData.byteLength === 'number') {
             materializedSize = responseData.byteLength;
@@ -8667,12 +6948,10 @@ const factory = env => {
             materializedSize = typeof TextEncoder === 'function' ? new TextEncoder().encode(responseData).byteLength : responseData.length;
           }
         }
-
         if (typeof materializedSize === 'number' && materializedSize > maxContentLength) {
           throw new _AxiosError.default('maxContentLength size of ' + maxContentLength + ' exceeded', _AxiosError.default.ERR_BAD_RESPONSE, config, request);
         }
       }
-
       !isStreamResponse && unsubscribe && unsubscribe();
       return await new Promise((resolve, reject) => {
         (0, _settle.default)(resolve, reject, {
@@ -8685,10 +6964,11 @@ const factory = env => {
         });
       });
     } catch (err) {
-      unsubscribe && unsubscribe(); // Safari can surface fetch aborts as a DOMException-like object whose
+      unsubscribe && unsubscribe();
+
+      // Safari can surface fetch aborts as a DOMException-like object whose
       // branded getters throw. Prefer our composed signal reason before reading
       // the caught error, preserving timeout vs cancellation semantics.
-
       if (composedSignal && composedSignal.aborted && composedSignal.reason instanceof _AxiosError.default) {
         const canceledError = composedSignal.reason;
         canceledError.config = config;
@@ -8696,20 +6976,16 @@ const factory = env => {
         err !== canceledError && (canceledError.cause = err);
         throw canceledError;
       }
-
       if (err && err.name === 'TypeError' && /Load failed|fetch/i.test(err.message)) {
         throw Object.assign(new _AxiosError.default('Network Error', _AxiosError.default.ERR_NETWORK, config, request, err && err.response), {
           cause: err.cause || err
         });
       }
-
       throw _AxiosError.default.from(err, err && err.code, config, request, err && err.response);
     }
   };
 };
-
 const seedCache = new Map();
-
 const getFetch = config => {
   let env = config && config.env || {};
   const {
@@ -8719,24 +6995,20 @@ const getFetch = config => {
   } = env;
   const seeds = [Request, Response, fetch];
   let len = seeds.length,
-      i = len,
-      seed,
-      target,
-      map = seedCache;
-
+    i = len,
+    seed,
+    target,
+    map = seedCache;
   while (i--) {
     seed = seeds[i];
     target = map.get(seed);
     target === undefined && map.set(seed, target = i ? new Map() : factory(env));
     map = target;
   }
-
   return target;
 };
-
 exports.getFetch = getFetch;
 const adapter = getFetch();
-
 var _default = exports.default = adapter;
 },{"../platform/index.js":"../../node_modules/axios/lib/platform/index.js","../utils.js":"../../node_modules/axios/lib/utils.js","../core/AxiosError.js":"../../node_modules/axios/lib/core/AxiosError.js","../helpers/composeSignals.js":"../../node_modules/axios/lib/helpers/composeSignals.js","../helpers/trackStream.js":"../../node_modules/axios/lib/helpers/trackStream.js","../core/AxiosHeaders.js":"../../node_modules/axios/lib/core/AxiosHeaders.js","../helpers/progressEventReducer.js":"../../node_modules/axios/lib/helpers/progressEventReducer.js","../helpers/resolveConfig.js":"../../node_modules/axios/lib/helpers/resolveConfig.js","../core/settle.js":"../../node_modules/axios/lib/core/settle.js","../helpers/estimateDataURLDecodedBytes.js":"../../node_modules/axios/lib/helpers/estimateDataURLDecodedBytes.js","../env/data.js":"../../node_modules/axios/lib/env/data.js","../helpers/sanitizeHeaderValue.js":"../../node_modules/axios/lib/helpers/sanitizeHeaderValue.js"}],"../../node_modules/axios/lib/adapters/adapters.js":[function(require,module,exports) {
 "use strict";
@@ -8745,21 +7017,13 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _http = _interopRequireDefault(require("./http.js"));
-
 var _xhr = _interopRequireDefault(require("./xhr.js"));
-
 var fetchAdapter = _interopRequireWildcard(require("./fetch.js"));
-
 var _AxiosError = _interopRequireDefault(require("../core/AxiosError.js"));
-
 function _interopRequireWildcard(e, t) { if ("function" == typeof WeakMap) var r = new WeakMap(), n = new WeakMap(); return (_interopRequireWildcard = function (e, t) { if (!t && e && e.__esModule) return e; var o, i, f = { __proto__: null, default: e }; if (null === e || "object" != typeof e && "function" != typeof e) return f; if (o = t ? n : r) { if (o.has(e)) return o.get(e); o.set(e, f); } for (const t in e) "default" !== t && {}.hasOwnProperty.call(e, t) && ((i = (o = Object.defineProperty) && Object.getOwnPropertyDescriptor(e, t)) && (i.get || i.set) ? o(f, t, i) : f[t] = e[t]); return f; })(e, t); }
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /**
  * Known adapters mapping.
  * Provides environment-specific adapters for Axios:
@@ -8775,8 +7039,9 @@ const knownAdapters = {
   fetch: {
     get: fetchAdapter.getFetch
   }
-}; // Assign adapter names for easier debugging and identification
+};
 
+// Assign adapter names for easier debugging and identification
 _utils.default.forEach(knownAdapters, (fn, value) => {
   if (fn) {
     try {
@@ -8786,33 +7051,32 @@ _utils.default.forEach(knownAdapters, (fn, value) => {
         __proto__: null,
         value
       });
-    } catch (e) {// eslint-disable-next-line no-empty
+    } catch (e) {
+      // eslint-disable-next-line no-empty
     }
-
     Object.defineProperty(fn, 'adapterName', {
       __proto__: null,
       value
     });
   }
 });
+
 /**
  * Render a rejection reason string for unknown or unsupported adapters
  *
  * @param {string} reason
  * @returns {string}
  */
-
-
 const renderReason = reason => `- ${reason}`;
+
 /**
  * Check if the adapter is resolved (function, null, or false)
  *
  * @param {Function|null|false} adapter
  * @returns {boolean}
  */
-
-
 const isResolvedHandle = adapter => _utils.default.isFunction(adapter) || adapter === null || adapter === false;
+
 /**
  * Get the first suitable adapter from the provided list.
  * Tries each adapter in order until a supported one is found.
@@ -8823,8 +7087,6 @@ const isResolvedHandle = adapter => _utils.default.isFunction(adapter) || adapte
  * @throws {AxiosError} If no suitable adapter is available
  * @returns {Function} The resolved adapter function
  */
-
-
 function getAdapter(adapters, config) {
   adapters = _utils.default.isArray(adapters) ? adapters : [adapters];
   const {
@@ -8833,47 +7095,38 @@ function getAdapter(adapters, config) {
   let nameOrAdapter;
   let adapter;
   const rejectedReasons = {};
-
   for (let i = 0; i < length; i++) {
     nameOrAdapter = adapters[i];
     let id;
     adapter = nameOrAdapter;
-
     if (!isResolvedHandle(nameOrAdapter)) {
       adapter = knownAdapters[(id = String(nameOrAdapter)).toLowerCase()];
-
       if (adapter === undefined) {
         throw new _AxiosError.default(`Unknown adapter '${id}'`);
       }
     }
-
     if (adapter && (_utils.default.isFunction(adapter) || (adapter = adapter.get(config)))) {
       break;
     }
-
     rejectedReasons[id || '#' + i] = adapter;
   }
-
   if (!adapter) {
     const reasons = Object.entries(rejectedReasons).map(([id, state]) => `adapter ${id} ` + (state === false ? 'is not supported by the environment' : 'is not available in the build'));
     let s = length ? reasons.length > 1 ? 'since :\n' + reasons.map(renderReason).join('\n') : ' ' + renderReason(reasons[0]) : 'as no adapter specified';
     throw new _AxiosError.default(`There is no suitable adapter to dispatch the request ` + s, 'ERR_NOT_SUPPORT');
   }
-
   return adapter;
 }
+
 /**
  * Exports Axios adapters and utility to resolve an adapter
  */
-
-
 var _default = exports.default = {
   /**
    * Resolve an adapter from a list of adapter names or functions.
    * @type {Function}
    */
   getAdapter,
-
   /**
    * Exposes all known adapters
    * @type {Object<string, Function|Object>}
@@ -8887,21 +7140,13 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = dispatchRequest;
-
 var _transformData = _interopRequireDefault(require("./transformData.js"));
-
 var _isCancel = _interopRequireDefault(require("../cancel/isCancel.js"));
-
 var _index = _interopRequireDefault(require("../defaults/index.js"));
-
 var _CanceledError = _interopRequireDefault(require("../cancel/CanceledError.js"));
-
 var _AxiosHeaders = _interopRequireDefault(require("../core/AxiosHeaders.js"));
-
 var _adapters = _interopRequireDefault(require("../adapters/adapters.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /**
  * Throws a `CanceledError` if cancellation has been requested.
  *
@@ -8913,11 +7158,11 @@ function throwIfCancellationRequested(config) {
   if (config.cancelToken) {
     config.cancelToken.throwIfRequested();
   }
-
   if (config.signal && config.signal.aborted) {
     throw new _CanceledError.default(null, config);
   }
 }
+
 /**
  * Dispatch a request to the server using the configured adapter.
  *
@@ -8925,52 +7170,45 @@ function throwIfCancellationRequested(config) {
  *
  * @returns {Promise} The Promise to be fulfilled
  */
-
-
 function dispatchRequest(config) {
   throwIfCancellationRequested(config);
-  config.headers = _AxiosHeaders.default.from(config.headers); // Transform request data
+  config.headers = _AxiosHeaders.default.from(config.headers);
 
+  // Transform request data
   config.data = _transformData.default.call(config, config.transformRequest);
-
   if (['post', 'put', 'patch'].indexOf(config.method) !== -1) {
     config.headers.setContentType('application/x-www-form-urlencoded', false);
   }
-
   const adapter = _adapters.default.getAdapter(config.adapter || _index.default.adapter, config);
-
   return adapter(config).then(function onAdapterResolution(response) {
-    throwIfCancellationRequested(config); // Expose the current response on config so that transformResponse can
+    throwIfCancellationRequested(config);
+
+    // Expose the current response on config so that transformResponse can
     // attach it to any AxiosError it throws (e.g. on JSON parse failure).
     // We clean it up afterwards to avoid polluting the config object.
-
     config.response = response;
-
     try {
       response.data = _transformData.default.call(config, config.transformResponse, response);
     } finally {
       delete config.response;
     }
-
     response.headers = _AxiosHeaders.default.from(response.headers);
     return response;
   }, function onAdapterRejection(reason) {
     if (!(0, _isCancel.default)(reason)) {
-      throwIfCancellationRequested(config); // Transform response data
+      throwIfCancellationRequested(config);
 
+      // Transform response data
       if (reason && reason.response) {
         config.response = reason.response;
-
         try {
           reason.response.data = _transformData.default.call(config, config.transformResponse, reason.response);
         } finally {
           delete config.response;
         }
-
         reason.response.headers = _AxiosHeaders.default.from(reason.response.headers);
       }
     }
-
     return Promise.reject(reason);
   });
 }
@@ -8981,21 +7219,19 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _data = require("../env/data.js");
-
 var _AxiosError = _interopRequireDefault(require("../core/AxiosError.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+const validators = {};
 
-const validators = {}; // eslint-disable-next-line func-names
-
+// eslint-disable-next-line func-names
 ['object', 'boolean', 'number', 'function', 'string', 'symbol'].forEach((type, i) => {
   validators[type] = function validator(thing) {
     return typeof thing === type || 'a' + (i < 1 ? 'n ' : ' ') + type;
   };
 });
 const deprecatedWarnings = {};
+
 /**
  * Transitional option validator
  *
@@ -9005,28 +7241,24 @@ const deprecatedWarnings = {};
  *
  * @returns {function}
  */
-
 validators.transitional = function transitional(validator, version, message) {
   function formatMessage(opt, desc) {
     return '[Axios v' + _data.VERSION + "] Transitional option '" + opt + "'" + desc + (message ? '. ' + message : '');
-  } // eslint-disable-next-line func-names
+  }
 
-
+  // eslint-disable-next-line func-names
   return (value, opt, opts) => {
     if (validator === false) {
       throw new _AxiosError.default(formatMessage(opt, ' has been removed' + (version ? ' in ' + version : '')), _AxiosError.default.ERR_DEPRECATED);
     }
-
     if (version && !deprecatedWarnings[opt]) {
-      deprecatedWarnings[opt] = true; // eslint-disable-next-line no-console
-
+      deprecatedWarnings[opt] = true;
+      // eslint-disable-next-line no-console
       console.warn(formatMessage(opt, ' has been deprecated since v' + version + ' and will be removed in the near future'));
     }
-
     return validator ? validator(value, opt, opts) : true;
   };
 };
-
 validators.spelling = function spelling(correctSpelling) {
   return (value, opt) => {
     // eslint-disable-next-line no-console
@@ -9034,6 +7266,7 @@ validators.spelling = function spelling(correctSpelling) {
     return true;
   };
 };
+
 /**
  * Assert object's properties type
  *
@@ -9044,38 +7277,30 @@ validators.spelling = function spelling(correctSpelling) {
  * @returns {object}
  */
 
-
 function assertOptions(options, schema, allowUnknown) {
   if (typeof options !== 'object') {
     throw new _AxiosError.default('options must be an object', _AxiosError.default.ERR_BAD_OPTION_VALUE);
   }
-
   const keys = Object.keys(options);
   let i = keys.length;
-
   while (i-- > 0) {
-    const opt = keys[i]; // Use hasOwnProperty so a polluted Object.prototype.<opt> cannot supply
+    const opt = keys[i];
+    // Use hasOwnProperty so a polluted Object.prototype.<opt> cannot supply
     // a non-function validator and cause a TypeError.
-
     const validator = Object.prototype.hasOwnProperty.call(schema, opt) ? schema[opt] : undefined;
-
     if (validator) {
       const value = options[opt];
       const result = value === undefined || validator(value, opt, options);
-
       if (result !== true) {
         throw new _AxiosError.default('option ' + opt + ' must be ' + result, _AxiosError.default.ERR_BAD_OPTION_VALUE);
       }
-
       continue;
     }
-
     if (allowUnknown !== true) {
       throw new _AxiosError.default('Unknown option ' + opt, _AxiosError.default.ERR_BAD_OPTION);
     }
   }
 }
-
 var _default = exports.default = {
   assertOptions,
   validators
@@ -9087,28 +7312,18 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 var _buildURL = _interopRequireDefault(require("../helpers/buildURL.js"));
-
 var _InterceptorManager = _interopRequireDefault(require("./InterceptorManager.js"));
-
 var _dispatchRequest = _interopRequireDefault(require("./dispatchRequest.js"));
-
 var _mergeConfig = _interopRequireDefault(require("./mergeConfig.js"));
-
 var _buildFullPath = _interopRequireDefault(require("./buildFullPath.js"));
-
 var _validator = _interopRequireDefault(require("../helpers/validator.js"));
-
 var _AxiosHeaders = _interopRequireDefault(require("./AxiosHeaders.js"));
-
 var _transitional = _interopRequireDefault(require("../defaults/transitional.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 const validators = _validator.default.validators;
+
 /**
  * Create a new instance of Axios
  *
@@ -9116,7 +7331,6 @@ const validators = _validator.default.validators;
  *
  * @return {Axios} A new instance of Axios
  */
-
 class Axios {
   constructor(instanceConfig) {
     this.defaults = instanceConfig || {};
@@ -9125,6 +7339,7 @@ class Axios {
       response: new _InterceptorManager.default()
     };
   }
+
   /**
    * Dispatch a request
    *
@@ -9133,45 +7348,41 @@ class Axios {
    *
    * @returns {Promise} The Promise to be fulfilled
    */
-
-
   async request(configOrUrl, config) {
     try {
       return await this._request(configOrUrl, config);
     } catch (err) {
       if (err instanceof Error) {
         let dummy = {};
-        Error.captureStackTrace ? Error.captureStackTrace(dummy) : dummy = new Error(); // slice off the Error: ... line
+        Error.captureStackTrace ? Error.captureStackTrace(dummy) : dummy = new Error();
 
+        // slice off the Error: ... line
         const stack = (() => {
           if (!dummy.stack) {
             return '';
           }
-
           const firstNewlineIndex = dummy.stack.indexOf('\n');
           return firstNewlineIndex === -1 ? '' : dummy.stack.slice(firstNewlineIndex + 1);
         })();
-
         try {
           if (!err.stack) {
-            err.stack = stack; // match without the 2 top stack lines
+            err.stack = stack;
+            // match without the 2 top stack lines
           } else if (stack) {
             const firstNewlineIndex = stack.indexOf('\n');
             const secondNewlineIndex = firstNewlineIndex === -1 ? -1 : stack.indexOf('\n', firstNewlineIndex + 1);
             const stackWithoutTwoTopLines = secondNewlineIndex === -1 ? '' : stack.slice(secondNewlineIndex + 1);
-
             if (!String(err.stack).endsWith(stackWithoutTwoTopLines)) {
               err.stack += '\n' + stack;
             }
           }
-        } catch (e) {// ignore the case where "stack" is an un-writable property
+        } catch (e) {
+          // ignore the case where "stack" is an un-writable property
         }
       }
-
       throw err;
     }
   }
-
   _request(configOrUrl, config) {
     /*eslint no-param-reassign:0*/
     // Allow for axios('example/url'[, config]) a la fetch API
@@ -9181,14 +7392,12 @@ class Axios {
     } else {
       config = configOrUrl || {};
     }
-
     config = (0, _mergeConfig.default)(this.defaults, config);
     const {
       transitional,
       paramsSerializer,
       headers
     } = config;
-
     if (transitional !== undefined) {
       _validator.default.assertOptions(transitional, {
         silentJSONParsing: validators.transitional(validators.boolean),
@@ -9197,7 +7406,6 @@ class Axios {
         legacyInterceptorReqResOrdering: validators.transitional(validators.boolean)
       }, false);
     }
-
     if (paramsSerializer != null) {
       if (_utils.default.isFunction(paramsSerializer)) {
         config.paramsSerializer = {
@@ -9209,42 +7417,41 @@ class Axios {
           serialize: validators.function
         }, true);
       }
-    } // Set config.allowAbsoluteUrls
+    }
 
-
-    if (config.allowAbsoluteUrls !== undefined) {// do nothing
+    // Set config.allowAbsoluteUrls
+    if (config.allowAbsoluteUrls !== undefined) {
+      // do nothing
     } else if (this.defaults.allowAbsoluteUrls !== undefined) {
       config.allowAbsoluteUrls = this.defaults.allowAbsoluteUrls;
     } else {
       config.allowAbsoluteUrls = true;
     }
-
     _validator.default.assertOptions(config, {
       baseUrl: validators.spelling('baseURL'),
       withXsrfToken: validators.spelling('withXSRFToken')
-    }, true); // Set config.method
+    }, true);
 
+    // Set config.method
+    config.method = (config.method || this.defaults.method || 'get').toLowerCase();
 
-    config.method = (config.method || this.defaults.method || 'get').toLowerCase(); // Flatten headers
-
+    // Flatten headers
     let contextHeaders = headers && _utils.default.merge(headers.common, headers[config.method]);
-
     headers && _utils.default.forEach(['delete', 'get', 'head', 'post', 'put', 'patch', 'query', 'common'], method => {
       delete headers[method];
     });
-    config.headers = _AxiosHeaders.default.concat(contextHeaders, headers); // filter out skipped interceptors
+    config.headers = _AxiosHeaders.default.concat(contextHeaders, headers);
 
+    // filter out skipped interceptors
     const requestInterceptorChain = [];
     let synchronousRequestInterceptors = true;
     this.interceptors.request.forEach(function unshiftRequestInterceptors(interceptor) {
       if (typeof interceptor.runWhen === 'function' && interceptor.runWhen(config) === false) {
         return;
       }
-
       synchronousRequestInterceptors = synchronousRequestInterceptors && interceptor.synchronous;
       const transitional = config.transitional || _transitional.default;
       const legacyInterceptorReqResOrdering = transitional && transitional.legacyInterceptorReqResOrdering;
-
       if (legacyInterceptorReqResOrdering) {
         requestInterceptorChain.unshift(interceptor.fulfilled, interceptor.rejected);
       } else {
@@ -9258,28 +7465,22 @@ class Axios {
     let promise;
     let i = 0;
     let len;
-
     if (!synchronousRequestInterceptors) {
       const chain = [_dispatchRequest.default.bind(this), undefined];
       chain.unshift(...requestInterceptorChain);
       chain.push(...responseInterceptorChain);
       len = chain.length;
       promise = Promise.resolve(config);
-
       while (i < len) {
         promise = promise.then(chain[i++], chain[i++]);
       }
-
       return promise;
     }
-
     len = requestInterceptorChain.length;
     let newConfig = config;
-
     while (i < len) {
       const onFulfilled = requestInterceptorChain[i++];
       const onRejected = requestInterceptorChain[i++];
-
       try {
         newConfig = onFulfilled(newConfig);
       } catch (error) {
@@ -9287,32 +7488,26 @@ class Axios {
         break;
       }
     }
-
     try {
       promise = _dispatchRequest.default.call(this, newConfig);
     } catch (error) {
       return Promise.reject(error);
     }
-
     i = 0;
     len = responseInterceptorChain.length;
-
     while (i < len) {
       promise = promise.then(responseInterceptorChain[i++], responseInterceptorChain[i++]);
     }
-
     return promise;
   }
-
   getUri(config) {
     config = (0, _mergeConfig.default)(this.defaults, config);
     const fullPath = (0, _buildFullPath.default)(config.baseURL, config.url, config.allowAbsoluteUrls);
     return (0, _buildURL.default)(fullPath, config.params, config.paramsSerializer);
   }
+}
 
-} // Provide aliases for supported request methods
-
-
+// Provide aliases for supported request methods
 _utils.default.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData(method) {
   /*eslint func-names:0*/
   Axios.prototype[method] = function (url, config) {
@@ -9323,7 +7518,6 @@ _utils.default.forEach(['delete', 'get', 'head', 'options'], function forEachMet
     }));
   };
 });
-
 _utils.default.forEach(['post', 'put', 'patch', 'query'], function forEachMethodWithData(method) {
   function generateHTTPMethod(isForm) {
     return function httpMethod(url, data, config) {
@@ -9337,15 +7531,14 @@ _utils.default.forEach(['post', 'put', 'patch', 'query'], function forEachMethod
       }));
     };
   }
+  Axios.prototype[method] = generateHTTPMethod();
 
-  Axios.prototype[method] = generateHTTPMethod(); // QUERY is a safe/idempotent read method; multipart form bodies don't fit
+  // QUERY is a safe/idempotent read method; multipart form bodies don't fit
   // its semantics, so no queryForm shorthand is generated.
-
   if (method !== 'query') {
     Axios.prototype[method + 'Form'] = generateHTTPMethod(true);
   }
 });
-
 var _default = exports.default = Axios;
 },{"../utils.js":"../../node_modules/axios/lib/utils.js","../helpers/buildURL.js":"../../node_modules/axios/lib/helpers/buildURL.js","./InterceptorManager.js":"../../node_modules/axios/lib/core/InterceptorManager.js","./dispatchRequest.js":"../../node_modules/axios/lib/core/dispatchRequest.js","./mergeConfig.js":"../../node_modules/axios/lib/core/mergeConfig.js","./buildFullPath.js":"../../node_modules/axios/lib/core/buildFullPath.js","../helpers/validator.js":"../../node_modules/axios/lib/helpers/validator.js","./AxiosHeaders.js":"../../node_modules/axios/lib/core/AxiosHeaders.js","../defaults/transitional.js":"../../node_modules/axios/lib/defaults/transitional.js"}],"../../node_modules/axios/lib/cancel/CancelToken.js":[function(require,module,exports) {
 'use strict';
@@ -9354,11 +7547,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _CanceledError = _interopRequireDefault(require("./CanceledError.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /**
  * A `CancelToken` is an object that can be used to request cancellation of an operation.
  *
@@ -9371,113 +7561,97 @@ class CancelToken {
     if (typeof executor !== 'function') {
       throw new TypeError('executor must be a function.');
     }
-
     let resolvePromise;
     this.promise = new Promise(function promiseExecutor(resolve) {
       resolvePromise = resolve;
     });
-    const token = this; // eslint-disable-next-line func-names
+    const token = this;
 
+    // eslint-disable-next-line func-names
     this.promise.then(cancel => {
       if (!token._listeners) return;
       let i = token._listeners.length;
-
       while (i-- > 0) {
         token._listeners[i](cancel);
       }
-
       token._listeners = null;
-    }); // eslint-disable-next-line func-names
+    });
 
+    // eslint-disable-next-line func-names
     this.promise.then = onfulfilled => {
-      let _resolve; // eslint-disable-next-line func-names
-
-
+      let _resolve;
+      // eslint-disable-next-line func-names
       const promise = new Promise(resolve => {
         token.subscribe(resolve);
         _resolve = resolve;
       }).then(onfulfilled);
-
       promise.cancel = function reject() {
         token.unsubscribe(_resolve);
       };
-
       return promise;
     };
-
     executor(function cancel(message, config, request) {
       if (token.reason) {
         // Cancellation has already been requested
         return;
       }
-
       token.reason = new _CanceledError.default(message, config, request);
       resolvePromise(token.reason);
     });
   }
+
   /**
    * Throws a `CanceledError` if cancellation has been requested.
    */
-
-
   throwIfRequested() {
     if (this.reason) {
       throw this.reason;
     }
   }
+
   /**
    * Subscribe to the cancel signal
    */
-
 
   subscribe(listener) {
     if (this.reason) {
       listener(this.reason);
       return;
     }
-
     if (this._listeners) {
       this._listeners.push(listener);
     } else {
       this._listeners = [listener];
     }
   }
+
   /**
    * Unsubscribe from the cancel signal
    */
-
 
   unsubscribe(listener) {
     if (!this._listeners) {
       return;
     }
-
     const index = this._listeners.indexOf(listener);
-
     if (index !== -1) {
       this._listeners.splice(index, 1);
     }
   }
-
   toAbortSignal() {
     const controller = new AbortController();
-
     const abort = err => {
       controller.abort(err);
     };
-
     this.subscribe(abort);
-
     controller.signal.unsubscribe = () => this.unsubscribe(abort);
-
     return controller.signal;
   }
+
   /**
    * Returns an object that contains a new `CancelToken` and a function that, when called,
    * cancels the `CancelToken`.
    */
-
-
   static source() {
     let cancel;
     const token = new CancelToken(function executor(c) {
@@ -9488,12 +7662,11 @@ class CancelToken {
       cancel
     };
   }
-
 }
-
 var _default = exports.default = CancelToken;
 },{"./CanceledError.js":"../../node_modules/axios/lib/cancel/CanceledError.js"}],"../../node_modules/axios/lib/helpers/spread.js":[function(require,module,exports) {
 'use strict';
+
 /**
  * Syntactic sugar for invoking a function and expanding an array for arguments.
  *
@@ -9515,12 +7688,10 @@ var _default = exports.default = CancelToken;
  *
  * @returns {Function}
  */
-
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = spread;
-
 function spread(callback) {
   return function wrap(arr) {
     return callback.apply(null, arr);
@@ -9533,11 +7704,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = isAxiosError;
-
 var _utils = _interopRequireDefault(require("../utils.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /**
  * Determines whether the payload is an error thrown by Axios
  *
@@ -9629,7 +7797,6 @@ const HttpStatusCode = {
 Object.entries(HttpStatusCode).forEach(([key, value]) => {
   HttpStatusCode[value] = key;
 });
-
 var _default = exports.default = HttpStatusCode;
 },{}],"../../node_modules/axios/lib/axios.js":[function(require,module,exports) {
 'use strict';
@@ -9638,43 +7805,24 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 var _utils = _interopRequireDefault(require("./utils.js"));
-
 var _bind = _interopRequireDefault(require("./helpers/bind.js"));
-
 var _Axios = _interopRequireDefault(require("./core/Axios.js"));
-
 var _mergeConfig = _interopRequireDefault(require("./core/mergeConfig.js"));
-
 var _index = _interopRequireDefault(require("./defaults/index.js"));
-
 var _formDataToJSON = _interopRequireDefault(require("./helpers/formDataToJSON.js"));
-
 var _CanceledError = _interopRequireDefault(require("./cancel/CanceledError.js"));
-
 var _CancelToken = _interopRequireDefault(require("./cancel/CancelToken.js"));
-
 var _isCancel = _interopRequireDefault(require("./cancel/isCancel.js"));
-
 var _data = require("./env/data.js");
-
 var _toFormData = _interopRequireDefault(require("./helpers/toFormData.js"));
-
 var _AxiosError = _interopRequireDefault(require("./core/AxiosError.js"));
-
 var _spread = _interopRequireDefault(require("./helpers/spread.js"));
-
 var _isAxiosError = _interopRequireDefault(require("./helpers/isAxiosError.js"));
-
 var _AxiosHeaders = _interopRequireDefault(require("./core/AxiosHeaders.js"));
-
 var _adapters = _interopRequireDefault(require("./adapters/adapters.js"));
-
 var _HttpStatusCode = _interopRequireDefault(require("./helpers/HttpStatusCode.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /**
  * Create an instance of Axios
  *
@@ -9684,57 +7832,62 @@ function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e
  */
 function createInstance(defaultConfig) {
   const context = new _Axios.default(defaultConfig);
-  const instance = (0, _bind.default)(_Axios.default.prototype.request, context); // Copy axios.prototype to instance
+  const instance = (0, _bind.default)(_Axios.default.prototype.request, context);
 
+  // Copy axios.prototype to instance
   _utils.default.extend(instance, _Axios.default.prototype, context, {
     allOwnKeys: true
-  }); // Copy context to instance
+  });
 
-
+  // Copy context to instance
   _utils.default.extend(instance, context, null, {
     allOwnKeys: true
-  }); // Factory for creating new instances
+  });
 
-
+  // Factory for creating new instances
   instance.create = function create(instanceConfig) {
     return createInstance((0, _mergeConfig.default)(defaultConfig, instanceConfig));
   };
-
   return instance;
-} // Create the default instance to be exported
+}
 
+// Create the default instance to be exported
+const axios = createInstance(_index.default);
 
-const axios = createInstance(_index.default); // Expose Axios class to allow class inheritance
+// Expose Axios class to allow class inheritance
+axios.Axios = _Axios.default;
 
-axios.Axios = _Axios.default; // Expose Cancel & CancelToken
-
+// Expose Cancel & CancelToken
 axios.CanceledError = _CanceledError.default;
 axios.CancelToken = _CancelToken.default;
 axios.isCancel = _isCancel.default;
 axios.VERSION = _data.VERSION;
-axios.toFormData = _toFormData.default; // Expose AxiosError class
+axios.toFormData = _toFormData.default;
 
-axios.AxiosError = _AxiosError.default; // alias for CanceledError for backward compatibility
+// Expose AxiosError class
+axios.AxiosError = _AxiosError.default;
 
-axios.Cancel = axios.CanceledError; // Expose all/spread
+// alias for CanceledError for backward compatibility
+axios.Cancel = axios.CanceledError;
 
+// Expose all/spread
 axios.all = function all(promises) {
   return Promise.all(promises);
 };
+axios.spread = _spread.default;
 
-axios.spread = _spread.default; // Expose isAxiosError
+// Expose isAxiosError
+axios.isAxiosError = _isAxiosError.default;
 
-axios.isAxiosError = _isAxiosError.default; // Expose mergeConfig
-
+// Expose mergeConfig
 axios.mergeConfig = _mergeConfig.default;
 axios.AxiosHeaders = _AxiosHeaders.default;
-
 axios.formToJSON = thing => (0, _formDataToJSON.default)(_utils.default.isHTMLForm(thing) ? new FormData(thing) : thing);
-
 axios.getAdapter = _adapters.default.getAdapter;
 axios.HttpStatusCode = _HttpStatusCode.default;
-axios.default = axios; // this module should only have a default export
+axios.default = axios;
 
+// this module should only have a default export
 var _default = exports.default = axios;
 },{"./utils.js":"../../node_modules/axios/lib/utils.js","./helpers/bind.js":"../../node_modules/axios/lib/helpers/bind.js","./core/Axios.js":"../../node_modules/axios/lib/core/Axios.js","./core/mergeConfig.js":"../../node_modules/axios/lib/core/mergeConfig.js","./defaults/index.js":"../../node_modules/axios/lib/defaults/index.js","./helpers/formDataToJSON.js":"../../node_modules/axios/lib/helpers/formDataToJSON.js","./cancel/CanceledError.js":"../../node_modules/axios/lib/cancel/CanceledError.js","./cancel/CancelToken.js":"../../node_modules/axios/lib/cancel/CancelToken.js","./cancel/isCancel.js":"../../node_modules/axios/lib/cancel/isCancel.js","./env/data.js":"../../node_modules/axios/lib/env/data.js","./helpers/toFormData.js":"../../node_modules/axios/lib/helpers/toFormData.js","./core/AxiosError.js":"../../node_modules/axios/lib/core/AxiosError.js","./helpers/spread.js":"../../node_modules/axios/lib/helpers/spread.js","./helpers/isAxiosError.js":"../../node_modules/axios/lib/helpers/isAxiosError.js","./core/AxiosHeaders.js":"../../node_modules/axios/lib/core/AxiosHeaders.js","./adapters/adapters.js":"../../node_modules/axios/lib/adapters/adapters.js","./helpers/HttpStatusCode.js":"../../node_modules/axios/lib/helpers/HttpStatusCode.js"}],"../../node_modules/axios/index.js":[function(require,module,exports) {
 "use strict";
@@ -9750,11 +7903,8 @@ Object.defineProperty(exports, "default", {
   }
 });
 exports.toFormData = exports.spread = exports.mergeConfig = exports.isCancel = exports.isAxiosError = exports.getAdapter = exports.formToJSON = void 0;
-
 var _axios = _interopRequireDefault(require("./lib/axios.js"));
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 // This module is intended to unwrap Axios default export as named.
 // Keep top-level export same with static properties
 // so that it can keep same with es module or cjs
@@ -9801,23 +7951,21 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.showAlert = exports.hideAlert = void 0;
-
 /* eslint-disable */
+
 const hideAlert = () => {
   const el = document.querySelector('.alert');
   if (el) el.parentElement.removeChild(el);
-}; // type is 'success' or 'error'
+};
 
-
+// type is 'success' or 'error'
 exports.hideAlert = hideAlert;
-
 const showAlert = (type, msg) => {
   hideAlert();
-  const markup = `<div class="alert alert--${type}">${msg}</div>`;
+  const markup = "<div class=\"alert alert--".concat(type, "\">").concat(msg, "</div>");
   document.querySelector('body').insertAdjacentHTML('afterbegin', markup);
   window.setTimeout(hideAlert, 5000);
 };
-
 exports.showAlert = showAlert;
 },{}],"login.js":[function(require,module,exports) {
 "use strict";
@@ -9826,14 +7974,11 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.logout = exports.login = void 0;
-
 var _axios = _interopRequireDefault(require("axios"));
-
 var _alerts = require("./alerts");
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /* eslint-disable */
+
 const login = async (email, password) => {
   try {
     const res = await (0, _axios.default)({
@@ -9844,7 +7989,6 @@ const login = async (email, password) => {
         password
       }
     });
-
     if (res.data.status === 'success') {
       (0, _alerts.showAlert)('success', 'Logged in successfully!');
       window.setTimeout(() => {
@@ -9855,9 +7999,7 @@ const login = async (email, password) => {
     (0, _alerts.showAlert)('error', err.response.data.message);
   }
 };
-
 exports.login = login;
-
 const logout = async () => {
   try {
     const res = await (0, _axios.default)({
@@ -9870,7 +8012,6 @@ const logout = async () => {
     (0, _alerts.showAlert)('error', 'Error logging out! Try again.');
   }
 };
-
 exports.logout = logout;
 },{"axios":"../../node_modules/axios/index.js","./alerts":"alerts.js"}],"updateSettings.js":[function(require,module,exports) {
 "use strict";
@@ -9879,14 +8020,11 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.updateSettings = void 0;
-
 var _axios = _interopRequireDefault(require("axios"));
-
 var _alerts = require("./alerts");
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /* eslint-disable */
+
 // type is either 'password' or 'data'
 const updateSettings = async (data, type) => {
   try {
@@ -9896,15 +8034,13 @@ const updateSettings = async (data, type) => {
       url,
       data
     });
-
     if (res.data.status === 'success') {
-      (0, _alerts.showAlert)('success', `${type.toUpperCase()} updated successfully!`);
+      (0, _alerts.showAlert)('success', "".concat(type.toUpperCase(), " updated successfully!"));
     }
   } catch (err) {
     (0, _alerts.showAlert)('error', err.response.data.message);
   }
 };
-
 exports.updateSettings = updateSettings;
 },{"axios":"../../node_modules/axios/index.js","./alerts":"alerts.js"}],"stripe.js":[function(require,module,exports) {
 "use strict";
@@ -9913,22 +8049,20 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.bookTour = void 0;
-
 var _axios = _interopRequireDefault(require("axios"));
-
 var _alerts = require("./alerts");
-
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-
 /* eslint-disable */
-const stripe = 'pk_test'; //Stripe('pk_test_BUkd0ZXAj6m0q0jMyRgBxNns00PPtgvjjr');
+
+const stripe = Stripe('pk_test_51TYKK0LKgTNUzkx6cX24RA8kM9nF1dCvEUpluqmUpjcoa1vXRo8w5nbn5XR9HxtJurBWsjEJMejGqAs3FyvHdion00Z3GzI4KN'); // 'pk_test'; //
 
 const bookTour = async tourId => {
   try {
     // 1) Get checkout session from API
-    const session = await (0, _axios.default)(`http://127.0.0.1:3000/api/v1/booking/checkout-session${tourId}`);
-    console.log(session); // 2) Create checkout form + charge credit card
+    const session = await (0, _axios.default)("http://127.0.0.1:3000/api/v1/booking/checkout-session/".concat(tourId));
+    console.log(session);
 
+    // 2) Create checkout form + charge credit card
     await stripe.redirectToCheckout({
       sessionId: session.data.session.id
     });
@@ -9937,64 +8071,47 @@ const bookTour = async tourId => {
     (0, _alerts.showAlert)('error', err);
   }
 };
-
 exports.bookTour = bookTour;
 },{"axios":"../../node_modules/axios/index.js","./alerts":"alerts.js"}],"index.js":[function(require,module,exports) {
 "use strict";
 
-require("core-js/modules/es7.object.lookup-getter");
-
-require("core-js/modules/es7.object.lookup-setter");
-
-require("core-js/modules/es7.promise.finally");
-
-require("core-js/modules/es6.regexp.constructor");
-
-require("core-js/modules/es6.regexp.flags");
-
-require("core-js/modules/es6.regexp.match");
-
-require("core-js/modules/es6.regexp.replace");
-
-require("core-js/modules/es6.regexp.split");
-
-require("core-js/modules/es6.regexp.search");
-
-require("core-js/modules/es6.regexp.to-string");
-
-require("core-js/modules/es6.symbol");
-
-require("core-js/modules/es7.symbol.async-iterator");
-
-require("core-js/modules/es7.array.flat-map");
-
-require("core-js/modules/web.timers");
-
-require("core-js/modules/web.immediate");
-
-require("core-js/modules/web.dom.iterable");
-
-var _mapbox = require("./mapbox");
-
+require("core-js/modules/es7.array.flat-map.js");
+require("core-js/modules/es6.array.sort.js");
+require("core-js/modules/es7.promise.finally.js");
+require("core-js/modules/es7.symbol.async-iterator.js");
+require("core-js/modules/es7.string.trim-left.js");
+require("core-js/modules/es7.string.trim-right.js");
+require("core-js/modules/web.timers.js");
+require("core-js/modules/web.immediate.js");
+require("core-js/modules/web.dom.iterable.js");
+var _maptiler = require("./maptiler");
 var _login = require("./login");
-
 var _updateSettings = require("./updateSettings");
-
 var _stripe = require("./stripe");
+/* eslint-disable */
+
+// import { displayMap } from './mapbox';
 
 // DOM ELEMENTS
-const mapBox = document.getElementById('map');
+// const mapBox = document.getElementById('map');
+const mapElement = document.getElementById('map');
 const loginForm = document.querySelector('.form--login');
 const logOutBtn = document.querySelector('.nav__el--logout');
 const userDataForm = document.querySelector('.form-user-data');
 const userPasswordForm = document.querySelector('.form-user-password');
-const bookBtn = document.getElementById('book-tour'); // DELEGATION
+const bookBtn = document.getElementById('book-tour');
 
-if (mapBox) {
-  const location = JSON.parse(mapBox.dataset.locations);
-  (0, _mapbox.displayMap)(locations);
+// DELEGATION Map box
+// if (mapBox) {
+//   const location = JSON.parse(mapBox.dataset.locations);
+//   displayMap(locations);
+// }
+
+// Map Tiler
+if (mapElement) {
+  const locations = JSON.parse(mapElement.dataset.locations);
+  (0, _maptiler.displayMap)(locations);
 }
-
 if (loginForm) {
   addEventListener('submit', e => {
     e.preventDefault();
@@ -10003,7 +8120,6 @@ if (loginForm) {
     (0, _login.login)(email, password);
   });
 }
-
 if (logOutBtn) logOutBtn.addEventListener('click', _login.logout);
 if (userDataForm) userDataForm.addEventListener('submit', e => {
   e.preventDefault();
@@ -10031,16 +8147,13 @@ if (userPasswordForm) userPasswordForm.addEventListener('submit', async e => {
   document.getElementById('password-confirm').value = '';
 });
 if (bookBtn) bookBtn.addEventListener('click', e => {
-  const {
-    tourId
-  } = e.target.dataset;
+  const tourId = e.target.dataset.tourId;
   (0, _stripe.bookTour)(tourId);
 });
-},{"core-js/modules/es7.object.lookup-getter":"../../node_modules/core-js/modules/es7.object.lookup-getter.js","core-js/modules/es7.object.lookup-setter":"../../node_modules/core-js/modules/es7.object.lookup-setter.js","core-js/modules/es7.promise.finally":"../../node_modules/core-js/modules/es7.promise.finally.js","core-js/modules/es6.regexp.constructor":"../../node_modules/core-js/modules/es6.regexp.constructor.js","core-js/modules/es6.regexp.flags":"../../node_modules/core-js/modules/es6.regexp.flags.js","core-js/modules/es6.regexp.match":"../../node_modules/core-js/modules/es6.regexp.match.js","core-js/modules/es6.regexp.replace":"../../node_modules/core-js/modules/es6.regexp.replace.js","core-js/modules/es6.regexp.split":"../../node_modules/core-js/modules/es6.regexp.split.js","core-js/modules/es6.regexp.search":"../../node_modules/core-js/modules/es6.regexp.search.js","core-js/modules/es6.regexp.to-string":"../../node_modules/core-js/modules/es6.regexp.to-string.js","core-js/modules/es6.symbol":"../../node_modules/core-js/modules/es6.symbol.js","core-js/modules/es7.symbol.async-iterator":"../../node_modules/core-js/modules/es7.symbol.async-iterator.js","core-js/modules/es7.array.flat-map":"../../node_modules/core-js/modules/es7.array.flat-map.js","core-js/modules/web.timers":"../../node_modules/core-js/modules/web.timers.js","core-js/modules/web.immediate":"../../node_modules/core-js/modules/web.immediate.js","core-js/modules/web.dom.iterable":"../../node_modules/core-js/modules/web.dom.iterable.js","./mapbox":"mapbox.js","./login":"login.js","./updateSettings":"updateSettings.js","./stripe":"stripe.js"}],"../../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"core-js/modules/es7.array.flat-map.js":"../../node_modules/core-js/modules/es7.array.flat-map.js","core-js/modules/es6.array.sort.js":"../../node_modules/core-js/modules/es6.array.sort.js","core-js/modules/es7.promise.finally.js":"../../node_modules/core-js/modules/es7.promise.finally.js","core-js/modules/es7.symbol.async-iterator.js":"../../node_modules/core-js/modules/es7.symbol.async-iterator.js","core-js/modules/es7.string.trim-left.js":"../../node_modules/core-js/modules/es7.string.trim-left.js","core-js/modules/es7.string.trim-right.js":"../../node_modules/core-js/modules/es7.string.trim-right.js","core-js/modules/web.timers.js":"../../node_modules/core-js/modules/web.timers.js","core-js/modules/web.immediate.js":"../../node_modules/core-js/modules/web.immediate.js","core-js/modules/web.dom.iterable.js":"../../node_modules/core-js/modules/web.dom.iterable.js","./maptiler":"maptiler.js","./login":"login.js","./updateSettings":"updateSettings.js","./stripe":"stripe.js"}],"../../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
-
 function Module(moduleName) {
   OldModule.call(this, moduleName);
   this.hot = {
@@ -10056,37 +8169,32 @@ function Module(moduleName) {
   };
   module.bundle.hotData = null;
 }
-
 module.bundle.Module = Module;
 var checkedAssets, assetsToAccept;
 var parent = module.bundle.parent;
-
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "56191" + '/');
-
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "55107" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];
     var data = JSON.parse(event.data);
-
     if (data.type === 'update') {
       var handled = false;
       data.assets.forEach(function (asset) {
         if (!asset.isNew) {
           var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
-
           if (didAccept) {
             handled = true;
           }
         }
-      }); // Enable HMR for CSS by default.
+      });
 
+      // Enable HMR for CSS by default.
       handled = handled || data.assets.every(function (asset) {
         return asset.type === 'css' && asset.generated.js;
       });
-
       if (handled) {
         console.clear();
         data.assets.forEach(function (asset) {
@@ -10095,24 +8203,21 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         assetsToAccept.forEach(function (v) {
           hmrAcceptRun(v[0], v[1]);
         });
-      } else {
-        window.location.reload();
+      } else if (location.reload) {
+        // `location` global exists in a web worker context but lacks `.reload()` function.
+        location.reload();
       }
     }
-
     if (data.type === 'reload') {
       ws.close();
-
       ws.onclose = function () {
         location.reload();
       };
     }
-
     if (data.type === 'error-resolved') {
       console.log('[parcel] ✨ Error resolved');
       removeErrorOverlay();
     }
-
     if (data.type === 'error') {
       console.error('[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack);
       removeErrorOverlay();
@@ -10121,19 +8226,17 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     }
   };
 }
-
 function removeErrorOverlay() {
   var overlay = document.getElementById(OVERLAY_ID);
-
   if (overlay) {
     overlay.remove();
   }
 }
-
 function createErrorOverlay(data) {
   var overlay = document.createElement('div');
-  overlay.id = OVERLAY_ID; // html encode message and stack trace
+  overlay.id = OVERLAY_ID;
 
+  // html encode message and stack trace
   var message = document.createElement('div');
   var stackTrace = document.createElement('pre');
   message.innerText = data.error.message;
@@ -10141,41 +8244,31 @@ function createErrorOverlay(data) {
   overlay.innerHTML = '<div style="background: black; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; opacity: 0.85; font-family: Menlo, Consolas, monospace; z-index: 9999;">' + '<span style="background: red; padding: 2px 4px; border-radius: 2px;">ERROR</span>' + '<span style="top: 2px; margin-left: 5px; position: relative;">🚨</span>' + '<div style="font-size: 18px; font-weight: bold; margin-top: 20px;">' + message.innerHTML + '</div>' + '<pre>' + stackTrace.innerHTML + '</pre>' + '</div>';
   return overlay;
 }
-
 function getParents(bundle, id) {
   var modules = bundle.modules;
-
   if (!modules) {
     return [];
   }
-
   var parents = [];
   var k, d, dep;
-
   for (k in modules) {
     for (d in modules[k][1]) {
       dep = modules[k][1][d];
-
       if (dep === id || Array.isArray(dep) && dep[dep.length - 1] === id) {
         parents.push(k);
       }
     }
   }
-
   if (bundle.parent) {
     parents = parents.concat(getParents(bundle.parent, id));
   }
-
   return parents;
 }
-
 function hmrApply(bundle, asset) {
   var modules = bundle.modules;
-
   if (!modules) {
     return;
   }
-
   if (modules[asset.id] || !bundle.parent) {
     var fn = new Function('require', 'module', 'exports', asset.generated.js);
     asset.isNew = !modules[asset.id];
@@ -10184,60 +8277,47 @@ function hmrApply(bundle, asset) {
     hmrApply(bundle.parent, asset);
   }
 }
-
 function hmrAcceptCheck(bundle, id) {
   var modules = bundle.modules;
-
   if (!modules) {
     return;
   }
-
   if (!modules[id] && bundle.parent) {
     return hmrAcceptCheck(bundle.parent, id);
   }
-
   if (checkedAssets[id]) {
     return;
   }
-
   checkedAssets[id] = true;
   var cached = bundle.cache[id];
   assetsToAccept.push([bundle, id]);
-
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
     return true;
   }
-
   return getParents(global.parcelRequire, id).some(function (id) {
     return hmrAcceptCheck(global.parcelRequire, id);
   });
 }
-
 function hmrAcceptRun(bundle, id) {
   var cached = bundle.cache[id];
   bundle.hotData = {};
-
   if (cached) {
     cached.hot.data = bundle.hotData;
   }
-
   if (cached && cached.hot && cached.hot._disposeCallbacks.length) {
     cached.hot._disposeCallbacks.forEach(function (cb) {
       cb(bundle.hotData);
     });
   }
-
   delete bundle.cache[id];
   bundle(id);
   cached = bundle.cache[id];
-
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
     cached.hot._acceptCallbacks.forEach(function (cb) {
       cb();
     });
-
     return true;
   }
 }
 },{}]},{},["../../node_modules/parcel-bundler/src/builtins/hmr-runtime.js","index.js"], null)
-//# sourceMappingURL=/bundle.js.map
+//# sourceMappingURL=bundle.js.map

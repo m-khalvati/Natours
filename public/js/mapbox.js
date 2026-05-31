@@ -1,11 +1,13 @@
 /* eslint-disable */
 
 export const displayMap = locations => {
-  mapboxgl.accessToken = 'YourToken';
+  mapboxgl.accessToken =
+    'public Token';
 
   var map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/SignUpUser/Token',
+    // style: 'mapbox://styles/mapbox/streets-v11',
+    style: 'mapbox://styles/somebody/Token',
     scrollZoom: false
     // center: [-118.113491, 34.111745], // LA
     // zoom: 10,

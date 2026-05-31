@@ -2,9 +2,14 @@ extends base
 include _reviewCard
 
 block append head 
+  //- MapBox
   //- script(src='https://api.mapbox.com/mapbox-gl-js/v0.54.0/mapbox-gl.js')
-  //- link(href='https://api.mapbox.com/mapbox-gl-js/v0.54.0/mapbox-gl.css' rel='stylesheet')\\
-  //- Stripe payment
+  //- link(href='https://api.mapbox.com/mapbox-gl-js/v0.54.0/mapbox-gl.css' rel='stylesheet')
+  
+  //- MapLibre 
+  script(src='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js')
+  link(href='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css' rel='stylesheet')
+  script(src='https://js.stripe.com/v3/')
 
 mixin overviewBox(label, text, icon)
   .overview-box__detail

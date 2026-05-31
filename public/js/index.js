@@ -1,21 +1,29 @@
 /* eslint-disable */
 import '@babel/polyfill';
-import { displayMap } from './mapbox';
+// import { displayMap } from './mapbox';
+import { displayMap } from './maptiler';
 import { login, logout } from './login';
 import { updateSettings } from './updateSettings';
 import { bookTour } from './stripe';
 
 // DOM ELEMENTS
-const mapBox = document.getElementById('map');
+// const mapBox = document.getElementById('map');
+const mapElement = document.getElementById('map');
 const loginForm = document.querySelector('.form--login');
 const logOutBtn = document.querySelector('.nav__el--logout');
 const userDataForm = document.querySelector('.form-user-data');
 const userPasswordForm = document.querySelector('.form-user-password');
 const bookBtn = document.getElementById('book-tour');
 
-// DELEGATION
-if (mapBox) {
-  const location = JSON.parse(mapBox.dataset.locations);
+// DELEGATION Map box
+// if (mapBox) {
+//   const location = JSON.parse(mapBox.dataset.locations);
+//   displayMap(locations);
+// }
+
+// Map Tiler
+if (mapElement) {
+  const locations = JSON.parse(mapElement.dataset.locations);
   displayMap(locations);
 }
 

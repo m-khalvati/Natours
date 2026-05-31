@@ -1224,8 +1224,8 @@ const displayMap = locations => {
     container: 'map',
     style: 'https://vector.maptiler.ir/styles/osm/style.json',
     scrollZoom: false,
-    zoom: 25,
-    interactive: false
+    zoom: 25
+    // interactive: false
   });
   const bounds = new maplibregl.LngLatBounds();
 
@@ -8054,14 +8054,12 @@ var _alerts = require("./alerts");
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 /* eslint-disable */
 
-const stripe = Stripe('pk_test_51TYKK0LKgTNUzkx6cX24RA8kM9nF1dCvEUpluqmUpjcoa1vXRo8w5nbn5XR9HxtJurBWsjEJMejGqAs3FyvHdion00Z3GzI4KN'); // 'pk_test'; //
-
 const bookTour = async tourId => {
   try {
     // 1) Get checkout session from API
-    const session = await (0, _axios.default)("http://127.0.0.1:3000/api/v1/booking/checkout-session/".concat(tourId));
+    const session = await (0, _axios.default)("http://127.0.0.1:3000/api/v1/bookings/checkout-session/".concat(tourId));
     console.log(session);
-
+    const stripe = Stripe('pk_test_51TYKK0LKgTNUzkx6cX24RA8kM9nF1dCvEUpluqmUpjcoa1vXRo8w5nbn5XR9HxtJurBWsjEJMejGqAs3FyvHdion00Z3GzI4KN');
     // 2) Create checkout form + charge credit card
     await stripe.redirectToCheckout({
       sessionId: session.data.session.id
@@ -8147,6 +8145,7 @@ if (userPasswordForm) userPasswordForm.addEventListener('submit', async e => {
   document.getElementById('password-confirm').value = '';
 });
 if (bookBtn) bookBtn.addEventListener('click', e => {
+  e.target.textContent = 'Processing...';
   const tourId = e.target.dataset.tourId;
   (0, _stripe.bookTour)(tourId);
 });
@@ -8175,7 +8174,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "55107" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "56363" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];

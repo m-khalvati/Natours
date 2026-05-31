@@ -6,7 +6,7 @@ export const displayMap = locations => {
     style: 'https://vector.maptiler.ir/styles/osm/style.json',
     scrollZoom: false,
     zoom: 25,
-    interactive: false
+    // interactive: false
   });
 
   const bounds = new maplibregl.LngLatBounds();

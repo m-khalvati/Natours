@@ -7,9 +7,9 @@ export const bookTour = async tourId => {
   try {
     // 1) Get checkout session from API
     const session = await axios(
-      `http://127.0.0.1:3000/api/v1/bookings/checkout-session/${tourId}`
+      `/api/v1/bookings/checkout-session/${tourId}`
     );
-    console.log(session);
+    // console.log(session);
     
     const stripe = Stripe(
       'pk_test_51TYKK0LKgTNUzkx6cX24RA8kM9nF1dCvEUpluqmUpjcoa1vXRo8w5nbn5XR9HxtJurBWsjEJMejGqAs3FyvHdion00Z3GzI4KN'
